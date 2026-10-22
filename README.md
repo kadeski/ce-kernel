@@ -61,7 +61,7 @@ The shell starts in alpha lock, so keys type the green letters printed above the
 | `del` | delete the last character |
 | `clear` | clear the line |
 | up arrow | recall the last command |
-| `2nd` `mode` | exit back to TI-OS |
+| `2nd` `mode` | exit back to TI-OS (in `calc`, back to the shell) |
 | `on` | stop the running command; at the prompt, exit back to TI-OS |
 
 | Command | Does |
@@ -74,15 +74,22 @@ The shell starts in alpha lock, so keys type the green letters printed above the
 | `peek ADDR [LEN]` | hex dump of flash or RAM (hex numbers) |
 | `ls` | list the variables in TI-OS's archive: type, name, size, where the data starts |
 | `cat NAME` | hex dump of an archived variable's data (the first 128 bytes) |
+| `calc` | integer calculator, one expression per line (see below) |
 | `echo TEXT` | print text |
 | `clear` | clear the screen |
 | `exit` | return to TI-OS (the bare ROM halts instead) |
+
+### Calculator
+
+`calc` evaluates expressions such as `12*34` or `(2+3)^2`, one per line, using `+ - * / ^ ( )` and unary minus. It switches to digit mode, so no `alpha` is needed, and `del`, `clear` and the up arrow edit the line as at the shell prompt. `clear` on an empty line, `2nd` `mode` or `on` go back to the shell.
+
+Numbers are whole and 32-bit, from -2147483648 to 2147483647, and a result outside that range is an error. `/` drops the remainder (`7/2` is 3), and `^` goes first and groups right to left, so `2^3^2` is 512 and `-2^2` is -4.
 
 ## Layout
 
 ```
 src/drivers/   lcd, keypad, timer, real-time clock drivers and the hardware register map
-src/kernel/    kmain, console, shell, events, keymap, font
+src/kernel/    kmain, console, shell, calc, events, keymap, font
 src/tios/      TI-OS loader (KERNEL.8xp only)
 rom/           bare ROM loader: reset code, cold hardware init, linker script
 tests/         headless smoke test

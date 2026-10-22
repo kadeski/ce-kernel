@@ -41,6 +41,8 @@ A complete 4 MB flash image: reset vector at 0, a model header at `0x020000` (CE
 
 It is linked only against the toolchain's pure `libc.a` and `libcrt.a`, never the `_os` variants, and `rom/check_no_os_calls.py` fails the build if any code calls or jumps below `0x030000`. So a passing ROM build is also proof that the kernel needs no TI code.
 
+That check rules out the toolchain's `float`: its routines call the boot code (`0x0270`-`0x0290` in toolchain v15.0). 32- and 64-bit integer arithmetic is pure, so `calc` uses 32-bit integers and checks each step in 64 bits. A 64-bit `long double` from the toolchain's libsoftfloat also works once it is added to the ROM link, but its arithmetic alone about doubles the kernel's size.
+
 This image can't run on a real calculator: the boot code rejects it, and Python models need an extra SPI sequence because the ARM coprocessor shares the bus.
 
 ## Event loop

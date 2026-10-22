@@ -1,5 +1,6 @@
 #include "shell.h"
 #include "archive.h"
+#include "calc.h"
 #include "console.h"
 #include "events.h"
 #include "kernel.h"
@@ -12,7 +13,6 @@
 #include <string.h>
 
 #define PROMPT     "> "
-#define LINE_MAX   (CONSOLE_COLS - sizeof PROMPT)
 #define MAX_ARGS   4
 
 /* Placed by the linker script (toolchain script for the TI-OS build,
@@ -34,6 +34,7 @@ static void cmd_keys(uint8_t argc, char **argv);
 static void cmd_peek(uint8_t argc, char **argv);
 static void cmd_ls(uint8_t argc, char **argv);
 static void cmd_cat(uint8_t argc, char **argv);
+static void cmd_calc(uint8_t argc, char **argv);
 static void cmd_echo(uint8_t argc, char **argv);
 static void cmd_exit(uint8_t argc, char **argv);
 
@@ -47,14 +48,14 @@ static const struct command commands[] = {
     { "peek",   "ADDR [LEN]",    cmd_peek },
     { "ls",     "",              cmd_ls },
     { "cat",    "NAME",          cmd_cat },
+    { "calc",   "",              cmd_calc },
     { "echo",   "TEXT...",       cmd_echo },
     { "exit",   "",              cmd_exit },
     { NULL, NULL, NULL },
 };
 
-static char line[LINE_MAX + 1];
-static char last_line[LINE_MAX + 1];
-static uint8_t line_len;
+static char line[SHELL_LINE_MAX + 1];
+static char last_line[SHELL_LINE_MAX + 1];
 static struct keymap_state keys = { .alpha = true };
 static bool running;
 
@@ -352,6 +353,13 @@ static void cmd_keys(uint8_t argc, char **argv)
     keypad_poll();
 }
 
+static void cmd_calc(uint8_t argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+    calc_run();
+}
+
 static void cmd_exit(uint8_t argc, char **argv)
 {
     (void)argc;
@@ -396,7 +404,6 @@ static void prompt(void)
     console_set_color(COLOR_ACCENT);
     console_puts(PROMPT);
     console_set_color(COLOR_TEXT);
-    line_len = 0;
     line[0] = '\0';
 }
 
@@ -430,17 +437,74 @@ static void update_status(void)
     console_status(" " KERNEL_NAME " " KERNEL_VERSION, right);
 }
 
-static void replace_line(const char *text)
+/* Replaces the len characters of buf, on screen too, with text. Returns the
+ * new length. */
+static uint8_t replace_line(char *buf, uint8_t len, const char *text)
 {
-    while (line_len) {
+    while (len) {
         console_backspace();
-        line_len--;
+        len--;
     }
-    for (; *text && line_len < LINE_MAX; text++) {
-        line[line_len++] = *text;
+    for (; *text && len < SHELL_LINE_MAX; text++) {
+        buf[len++] = *text;
         console_putc(*text);
     }
-    line[line_len] = '\0';
+    buf[len] = '\0';
+    return len;
+}
+
+enum line_end shell_edit_line(char *buf, char *history)
+{
+    uint8_t len = (uint8_t)strlen(buf);
+
+    for (;;) {
+        if (kernel_poll())
+            return LINE_ON;
+
+        struct keymap_state before = keys;
+        char c = keymap_translate(&keys, keypad_poll());
+        if (keys.alpha != before.alpha || keys.second != before.second)
+            update_status();
+        switch (c) {
+        case KC_NONE:
+            break;
+        case KC_QUIT:
+            return LINE_QUIT;
+        case KC_ENTER:
+            console_newline();
+            if (len)
+                memcpy(history, buf, len + 1);
+            return LINE_ENTER;
+        case KC_BACKSPACE:
+            if (len) {
+                buf[--len] = '\0';
+                console_backspace();
+            }
+            break;
+        case KC_CLEAR:
+            if (!len)
+                return LINE_CLEAR;
+            len = replace_line(buf, len, "");
+            break;
+        case KC_HISTORY:
+            len = replace_line(buf, len, history);
+            break;
+        default:
+            if (len < SHELL_LINE_MAX) {
+                buf[len++] = c;
+                buf[len] = '\0';
+                console_putc(c);
+            }
+            break;
+        }
+    }
+}
+
+void shell_set_alpha(bool alpha)
+{
+    keys.alpha = alpha;
+    keys.second = false;
+    update_status();
 }
 
 void shell_run(void)
@@ -458,46 +522,21 @@ void shell_run(void)
     prompt();
 
     while (running) {
-        /* Commands stop on ON themselves; here at the prompt it exits. */
-        if (kernel_poll() && kernel_boot->can_exit)
-            break;
-
-        struct keymap_state before = keys;
-        char c = keymap_translate(&keys, keypad_poll());
-        if (keys.alpha != before.alpha || keys.second != before.second)
-            update_status();
-        switch (c) {
-        case KC_NONE:
-            break;
-        case KC_QUIT:
-            running = false;
-            break;
-        case KC_ENTER:
-            console_newline();
-            if (line_len)
-                memcpy(last_line, line, sizeof line);
+        switch (shell_edit_line(line, last_line)) {
+        case LINE_ENTER:
             execute(line);
             if (running)
                 prompt();
             break;
-        case KC_BACKSPACE:
-            if (line_len) {
-                line[--line_len] = '\0';
-                console_backspace();
-            }
+        case LINE_ON:
+            /* Commands stop on ON themselves; here at the prompt it exits. */
+            if (kernel_boot->can_exit)
+                running = false;
             break;
-        case KC_CLEAR:
-            replace_line("");
+        case LINE_QUIT:
+            running = false;
             break;
-        case KC_HISTORY:
-            replace_line(last_line);
-            break;
-        default:
-            if (line_len < LINE_MAX) {
-                line[line_len++] = c;
-                line[line_len] = '\0';
-                console_putc(c);
-            }
+        case LINE_CLEAR:
             break;
         }
     }

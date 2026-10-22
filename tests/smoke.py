@@ -256,6 +256,47 @@ def main() -> int:
     s.lines += ["keys enter", "run 200", "key on", "run 200"]
     expect("ON aborts keys", s.command("echo back"), r"^back$")
 
+    # calc switches to digit mode, and each way out puts the shell back in
+    # alpha lock. Checks match the expression line with its result, on a
+    # cleared screen: keys leaves its matrix drawn at the bottom.
+    s.type("clear")
+    s.lines += ["keys enter", "run 200"]
+    def enter_calc() -> Path:
+        shot = s.command("calc")
+        s.alpha = False
+        return shot
+
+    def leave_calc(keys: str):
+        s.lines += [keys, "run 200"]
+        s.alpha = True
+
+    expect("calc starts in digit mode", enter_calc(), status_bar.replace(" +a ", " +1 "))
+    expect("calc multiplies", s.command("12*34"), r"^= 12\*34\n408$")
+    s.lines.append("keys up")
+    expect("calc recalls the last expression", s.command("+1"), r"^= 12\*34\+1\n409$")
+    expect("calc: * and / before + and -", s.command("1+2*3-8/4"), r"^= 1\+2\*3-8/4\n5$")
+    expect("calc: / truncates toward zero", s.command("-7/2*100"), r"^= -7/2\*100\n-300$")
+    expect("calc: ^ before unary minus, right to left", s.command("-2^3^2"), r"^= -2\^3\^2\n-512$")
+    expect("calc: parentheses", s.command("(1+2)*(3+4)"), r"^= \(1\+2\)\*\(3\+4\)\n21$")
+    expect("calc reaches -2^31", s.command("(-2)^31"), r"^= \(-2\)\^31\n-2147483648$")
+    expect("calc overflow", s.command("2147483647+1"), r"^= 2147483647\+1\noverflow$")
+    expect("calc divide by zero", s.command("7/0"), r"^= 7/0\ndivide by zero$")
+    expect("calc negative exponent", s.command("2^-1"), r"^= 2\^-1\nnegative exponent$")
+    expect("calc integers only", s.command("1.5"), r"^= 1\.5\nintegers only$")
+    expect("calc missing )", s.command("(1+2"), r"^= \(1\+2\nmissing \)$")
+    expect("calc syntax error", s.command("1+*2"), r"^= 1\+\*2\nsyntax error$")
+    s.type("99")
+    leave_calc("keys clear,clear")
+    shot = s.command("echo cleared")
+    expect("CLEAR on an empty line leaves calc", shot, r"^=\n> echo cleared\ncleared$")
+    expect("leaving calc restores alpha lock", shot, status_bar)
+    enter_calc()
+    leave_calc("keys 2nd,mode")
+    expect("2nd mode leaves calc, not the kernel", s.command("echo quit"), r"^> echo quit\nquit$")
+    enter_calc()
+    leave_calc("key on")
+    expect("ON leaves calc, not the kernel", s.command("echo on"), r"^> echo on\non$")
+
     if tios:
         # Each way out goes back to arTIfiCE's launcher, and the next run
         # starts fresh.
