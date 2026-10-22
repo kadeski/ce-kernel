@@ -43,13 +43,22 @@ It is linked only against the toolchain's pure `libc.a` and `libcrt.a`, never th
 
 This image can't run on a real calculator: the boot code rejects it, and Python models need an extra SPI sequence because the ARM coprocessor shares the bus.
 
+## Event loop
+
+There are no threads. The shell's loop, and the loop of any command that keeps running, call `kernel_poll()` (`src/kernel/events.h`) on every pass. It runs the timer events that are due, such as the status bar's redraw every second, and returns true once ON has been pressed and released, which tells the command to stop.
+
+- Timer events are a fixed table of `EVENT_MAX` callbacks, each run once or repeating. They run to completion on the stack of whoever called `kernel_poll()`, so they must be short and must not call it themselves.
+- Threads with their own stacks would not fit: the TI-OS build has about 4 KB of stack. Commands keep their state in static buffers, and a command that loops keeps its loop and calls `kernel_poll()` rather than being rewritten as callbacks.
+- Deadlines are kept in timer ticks and compared with a signed difference, so they stay right when the 32-bit counter wraps (about every 36 hours at 32,768 Hz). Milliseconds would not: `timer_ms()` drops back to 0 at that point instead of wrapping at 2^32.
+- A command that doesn't poll holds up the timer events until it returns. That is fine for commands that finish on their own, like `ls` or `peek`.
+
 ## Rules the kernel follows
 
 - **No TI-OS calls.** Nothing under `src/kernel` or `src/drivers` may include `ti/*` or `tice.h` headers.
 - **Polling, interrupts off.** On revision I and later hardware the CPU's vectored interrupt mode (IM 2) doesn't work (CEmu: `asic.im2 = revision < ASIC_REV_I`), so every interrupt goes through TI's handler at `0x38`. Owning interrupts would mean running TI code, so the kernel polls the keypad, timer and ON key instead.
 - **No SPI on real hardware.** On a calculator TI-OS has already set up the panel; switching to 8bpp is only an LCD controller register change. Panel SPI commands live in `rom/` only.
 - **Only read plain memory.** `peek` refuses I/O ranges because reading some registers clears status bits.
-- **Always an exit.** The shell polls ON on every loop, so a stuck command can be escaped without the reset button.
+- **Loops call `kernel_poll()`.** Anything that loops calls it on every pass and stops when it returns true. So ON stops a running command and returns to the prompt, the way Ctrl-C does, and a stuck command can be escaped without the reset button. At the prompt, ON exits to TI-OS (the bare ROM ignores it there).
 
 ## Hardware notes
 

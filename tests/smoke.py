@@ -178,7 +178,11 @@ def main() -> int:
         """A TI-OS screen matches one from earlier in the run."""
         checks.append((desc, shot, (ref, rows)))
 
-    status_bar = r"^ ce-kernel 0\.1\.0 +a \d+s$"
+    def expect_changed(desc, shot, earlier, pattern):
+        """pattern matches both kernel screens, and its first group differs."""
+        checks.append((desc, shot, (earlier, re.compile(pattern, re.MULTILINE))))
+
+    status_bar = r"^ ce-kernel 0\.2\.0 +a (\d+)s$"
     if tios:
         # An AppVar, so the prgm menu still holds only arTIfiCE and KERNEL.
         # The first copy is overwritten, which leaves a deleted entry before
@@ -227,8 +231,17 @@ def main() -> int:
 
     s.type("keys")
     s.lines += ["keys enter", "keys down:9", "run 200"]
-    expect("keys shows a held key", s.screenshot(), r"^5 \. \. \. # ")
+    held = s.screenshot()
+    expect("keys shows a held key", held, r"^5 \. \. \. # ")
+    s.lines.append("run 1100")
+    expect_changed("the status bar ticks during keys", s.screenshot(), held, status_bar)
     s.lines += ["keys up:9", "keys clear", "run 200"]
+
+    # ON stops the command, and only the command: on a calculator, a press
+    # seen again at the prompt would exit the kernel.
+    s.type("keys")
+    s.lines += ["keys enter", "run 200", "key on", "run 200"]
+    expect("ON aborts keys", s.command("echo back"), r"^back$")
 
     if tios:
         # Each way out goes back to arTIfiCE's launcher, and the next run
@@ -273,13 +286,21 @@ def main() -> int:
         text = screen_text(shot, font)
         if isinstance(test, re.Pattern):
             ok = test.search("\n".join(text)) is not None
+        elif isinstance(test[1], re.Pattern):
+            earlier, pattern = test
+            before = pattern.search("\n".join(screen_text(earlier, font)))
+            after = pattern.search("\n".join(text))
+            ok = bool(before and after) and before.group(1) != after.group(1)
         else:
             ref, (top, bottom) = test
             ok = read_bmp(shot)[top:bottom] == read_bmp(ref)[top:bottom]
         print(f"{'ok  ' if ok else 'FAIL'} {desc}")
         if not ok:
             failed += 1
-            if not isinstance(test, re.Pattern):
+            if isinstance(test, tuple) and isinstance(test[1], re.Pattern):
+                print(f"     earlier screen {test[0].name} was:\n"
+                      + "\n".join("     |" + l for l in screen_text(test[0], font)))
+            elif not isinstance(test, re.Pattern):
                 hint = "" if args.keep else "; rerun with --keep DIR to see both"
                 print(f"     differs from {ref.name} in pixel rows {top}-{bottom - 1}{hint}")
             print("     screen was:\n" + "\n".join("     |" + l for l in text))

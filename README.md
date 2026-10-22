@@ -61,7 +61,8 @@ The shell starts in alpha lock, so keys type the green letters printed above the
 | `del` | delete the last character |
 | `clear` | clear the line |
 | up arrow | recall the last command |
-| `2nd` `mode`, or `on` | exit back to TI-OS |
+| `2nd` `mode` | exit back to TI-OS |
+| `on` | stop the running command; at the prompt, exit back to TI-OS |
 
 | Command | Does |
 |---|---|
@@ -69,7 +70,7 @@ The shell starts in alpha lock, so keys type the green letters printed above the
 | `about` | version and how the kernel was started |
 | `mem` | memory map: kernel image, variables, free RAM, screen |
 | `uptime` | seconds since the kernel started |
-| `keys` | live view of the key matrix (`clear` to stop) |
+| `keys` | live view of the key matrix (`clear` or `on` to stop) |
 | `peek ADDR [LEN]` | hex dump of flash or RAM (hex numbers) |
 | `ls` | list the variables in TI-OS's archive: type, name, size, where the data starts |
 | `cat NAME` | hex dump of an archived variable's data (the first 128 bytes) |
@@ -81,7 +82,7 @@ The shell starts in alpha lock, so keys type the green letters printed above the
 
 ```
 src/drivers/   lcd, keypad, timer drivers and the hardware register map
-src/kernel/    kmain, console, shell, keymap, font
+src/kernel/    kmain, console, shell, events, keymap, font
 src/tios/      TI-OS loader (KERNEL.8xp only)
 rom/           bare ROM loader: reset code, cold hardware init, linker script
 tests/         headless smoke test

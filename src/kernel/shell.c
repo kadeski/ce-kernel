@@ -1,6 +1,7 @@
 #include "shell.h"
 #include "archive.h"
 #include "console.h"
+#include "events.h"
 #include "kernel.h"
 #include "keymap.h"
 #include "../drivers/hw.h"
@@ -329,9 +330,9 @@ static void cmd_keys(uint8_t argc, char **argv)
         console_newline();
 
     uint8_t state[KEYPAD_GROUPS];
-    for (;;) {
+    while (!kernel_poll()) {
         keypad_scan(state);
-        if ((state[KEY_CLEAR >> 3] & (1 << (KEY_CLEAR & 7))) || keypad_on_pressed())
+        if (state[KEY_CLEAR >> 3] & (1 << (KEY_CLEAR & 7)))
             break;
         for (uint8_t g = 1; g < KEYPAD_GROUPS; g++) {
             uint8_t row = CONSOLE_ROWS - KEYPAD_GROUPS + g;
@@ -346,7 +347,7 @@ static void cmd_keys(uint8_t argc, char **argv)
     /* Wait for CLEAR to come back up so the shell doesn't see it. */
     do
         keypad_scan(state);
-    while (state[KEY_CLEAR >> 3] & (1 << (KEY_CLEAR & 7)));
+    while ((state[KEY_CLEAR >> 3] & (1 << (KEY_CLEAR & 7))) && !kernel_poll());
     keypad_poll();
 }
 
@@ -398,17 +399,12 @@ static void prompt(void)
     line[0] = '\0';
 }
 
+/* Redraws the status bar. A timer event runs it every second for the uptime,
+ * and the shell loop when a key changes the typing layer. */
 static void update_status(void)
 {
     static char right[16];              /* longest: "2nd a 99999s" */
-    static uint32_t last_second = 0xFFFFFFFF;
-    static struct keymap_state last_keys;
     uint32_t second = timer_ms() / 1000;
-
-    if (second == last_second && keys.alpha == last_keys.alpha && keys.second == last_keys.second)
-        return;
-    last_second = second;
-    last_keys = keys;
 
     /* "[2nd] a  12345s" */
     uint8_t i = 0;
@@ -450,6 +446,7 @@ void shell_run(void)
 {
     running = true;
     update_status();
+    event_every(1000, update_status);
     console_set_color(COLOR_ACCENT);
     console_puts(KERNEL_NAME " " KERNEL_VERSION);
     console_newline();
@@ -460,11 +457,14 @@ void shell_run(void)
     prompt();
 
     while (running) {
-        update_status();
-        if (keypad_on_pressed() && kernel_boot->can_exit)
+        /* Commands stop on ON themselves; here at the prompt it exits. */
+        if (kernel_poll() && kernel_boot->can_exit)
             break;
 
+        struct keymap_state before = keys;
         char c = keymap_translate(&keys, keypad_poll());
+        if (keys.alpha != before.alpha || keys.second != before.second)
+            update_status();
         switch (c) {
         case KC_NONE:
             break;

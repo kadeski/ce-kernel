@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 #define KERNEL_NAME    "ce-kernel"
-#define KERNEL_VERSION "0.1.0"
+#define KERNEL_VERSION "0.2.0"
 
 /* What the loader tells the kernel about how it was started. */
 struct boot_info {
