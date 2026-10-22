@@ -1,9 +1,19 @@
-"""Boot the bare ROM in headless CEmu, type shell commands, and check the output.
+"""Boot the kernel in headless CEmu, type shell commands, and check the output.
 
-The screen is read back as text: the console draws an 8x8 font on a fixed grid,
-so each 8x8 cell of a screenshot is matched against the kernel's own glyphs.
+There is one mode per loader:
 
-usage: smoke.py --rom bin/kernel.rom [--headless PATH] [--keep DIR]
+    smoke.py --rom bin/kernel.rom
+        boots the bare ROM straight into the kernel.
+    smoke.py --rom DUMP.rom --program bin/KERNEL.8xp --artifice arTIfiCE.8xp
+        boots TI-OS from a ROM dumped from a calculator, sends both programs,
+        starts the kernel from arTIfiCE's launcher and checks each way back.
+
+The kernel's screen is read back as text: the console draws an 8x8 font on a
+fixed grid, so each 8x8 cell of a screenshot is matched against the kernel's
+own glyphs. TI-OS screens can't be read that way, so they are compared with
+screenshots taken earlier in the same run.
+
+usage: smoke.py --rom ROM [--program 8XP --artifice 8XP] [--headless PATH] [--keep DIR]
 """
 
 import argparse
@@ -17,6 +27,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 COLS, ROWS = 40, 30
+
+# Pixel rows of a TI-OS screen to compare. The status bar above them has an
+# animated battery icon; on the home screen, the cursor blinks below them.
+TIOS_ROWS = (30, 240)
+HOME_ROWS = (30, 76)                    # the first entry and its answer
 
 # Reverse of src/kernel/keymap.c: which physical key types each character.
 ALPHA_KEYS = {
@@ -81,7 +96,7 @@ class Script:
     """Builds a cemu-headless command script, tracking the ALPHA lock state."""
 
     def __init__(self, shots: Path):
-        self.lines = ["run 1500"]
+        self.lines = []
         self.alpha = True               # the shell starts in alpha lock
         self.shots = shots
         self.count = 0
@@ -110,30 +125,70 @@ class Script:
         self.lines.append(f"screenshot {path}")
         return path
 
+    def start_artifice(self) -> Path:
+        """From the TI-OS home screen, run arTIfiCE and screenshot its launcher.
+
+        RAM holds only TI-Basic programs, so the prgm menu doesn't ask which
+        kind, and arTIfiCE's program sorts first."""
+        self.lines += ["keys clear,prgm", "run 500", "keys enter", "run 500", "keys enter", "run 2000"]
+        return self.screenshot()
+
+    def start_kernel(self) -> Path:
+        """From arTIfiCE's launcher, run KERNEL, its only entry."""
+        self.lines += ["keys enter", "run 1500"]
+        self.alpha = True               # each run starts in alpha lock again
+        return self.screenshot()
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--rom", required=True, type=Path)
+    parser.add_argument("--rom", required=True, type=Path,
+                        help="bin/kernel.rom, or with --program a ROM dumped from a calculator")
+    parser.add_argument("--program", type=Path, help="bin/KERNEL.8xp, to test the TI-OS loader")
+    parser.add_argument("--artifice", type=Path, help="arTIfiCE's .8xp for the ROM's OS version")
     parser.add_argument("--headless", default=shutil.which("cemu-headless") or "cemu-headless")
     parser.add_argument("--keep", type=Path, help="keep screenshots in this directory")
     args = parser.parse_args()
+    tios = args.program is not None
+    if tios != (args.artifice is not None):
+        parser.error("--program and --artifice go together")
 
     shots = args.keep or Path(tempfile.mkdtemp(prefix="ce-kernel-smoke-"))
     shots.mkdir(parents=True, exist_ok=True)
     s = Script(shots)
 
-    checks = []                         # (description, screenshot, predicate on screen text)
+    checks = []                         # (description, screenshot, test)
 
     def expect(desc, shot, pattern):
+        """Some line of the kernel's screen matches pattern."""
         checks.append((desc, shot, re.compile(pattern)))
 
-    boot = s.screenshot()
-    expect("status bar", boot, r"^ ce-kernel 0\.1\.0 +a \d+s$")
+    def expect_same(desc, shot, ref, rows=TIOS_ROWS):
+        """A TI-OS screen matches one from earlier in the run."""
+        checks.append((desc, shot, (ref, rows)))
+
+    status_bar = r"^ ce-kernel 0\.1\.0 +a \d+s$"
+    if tios:
+        s.lines += [
+            "run 8000",                 # TI-OS boots to "RAM Cleared"
+            f"send-file {args.artifice}",
+            f"send-file {args.program}",
+            "keys clear,1,add,1,enter",
+            "run 500",
+        ]
+        home = s.screenshot()
+        launcher = s.start_artifice()
+        boot = s.start_kernel()
+    else:
+        s.lines.append("run 1500")
+        boot = s.screenshot()
+    expect("status bar", boot, status_bar)
     expect("banner", boot, r"^type help and press ENTER$")
     expect("prompt", boot, r"^> $|^>$")
 
     expect("help lists commands", s.command("help"), r"^peek ADDR \[LEN\]$")
-    expect("about names the loader", s.command("about"), r"^loader: bare ROM \(no TI code\)$")
+    loader = r"TI-OS \(asm program\)" if tios else r"bare ROM \(no TI code\)"
+    expect("about names the loader", s.command("about"), rf"^loader: {loader}$")
     expect("mem shows the framebuffer", s.command("mem"), r"^screen  D40000-D52C00  76800$")
     expect("echo", s.command("echo hi there"), r"^hi there$")
     expect("peek reads flash", s.command("peek 30000 8"), r"^030000: [0-9A-F]{2}( [0-9A-F]{2}){7}$")
@@ -147,11 +202,29 @@ def main() -> int:
     expect("keys shows a held key", s.screenshot(), r"^5 \. \. \. # ")
     s.lines += ["keys up:9", "keys clear", "run 200"]
 
-    # ON exits on a calculator; the bare ROM has nowhere to go and must ignore it.
-    s.lines += ["key on", "run 200"]
-    expect("ON is ignored by the bare ROM", s.command("echo still here"), r"^still here$")
+    if tios:
+        # Each way out goes back to arTIfiCE's launcher, and the next run
+        # starts fresh.
+        s.type("1")                     # leave the shell in digit mode
+        s.lines += ["keys clear,2nd,mode", "run 1500"]
+        expect_same("2nd mode returns to arTIfiCE", s.screenshot(), launcher)
+        expect("a new run starts in alpha lock", s.start_kernel(), status_bar)
+        s.lines += ["key on", "run 1500"]
+        expect_same("ON returns to arTIfiCE", s.screenshot(), launcher)
+        s.start_kernel()
+        expect_same("exit returns to arTIfiCE", s.command("exit"), launcher)
 
-    expect("exit halts the bare ROM", s.command("exit"), r"^halted; nothing to return to$")
+        # Quitting arTIfiCE leaves a TI-OS that still computes and runs programs.
+        s.lines += ["keys mode", "run 1500", "keys clear,1,add,1,enter", "run 500"]
+        expect_same("TI-OS home screen works", s.screenshot(), home, HOME_ROWS)
+        expect_same("arTIfiCE starts again", s.start_artifice(), launcher)
+        expect("the kernel starts again", s.start_kernel(), status_bar)
+    else:
+        # ON exits on a calculator; the bare ROM has nowhere to go and must ignore it.
+        s.lines += ["key on", "run 200"]
+        expect("ON is ignored by the bare ROM", s.command("echo still here"), r"^still here$")
+
+        expect("exit halts the bare ROM", s.command("exit"), r"^halted; nothing to return to$")
     s.lines.append("quit")
 
     proc = subprocess.run(
@@ -167,14 +240,20 @@ def main() -> int:
         return 1
 
     font = load_font()
-    cache = {}
     failed = 0
-    for desc, shot, pattern in checks:
-        text = cache.setdefault(shot, screen_text(shot, font))
-        ok = any(pattern.search(line) for line in text)
+    for desc, shot, test in checks:
+        text = screen_text(shot, font)
+        if isinstance(test, re.Pattern):
+            ok = any(test.search(line) for line in text)
+        else:
+            ref, (top, bottom) = test
+            ok = read_bmp(shot)[top:bottom] == read_bmp(ref)[top:bottom]
         print(f"{'ok  ' if ok else 'FAIL'} {desc}")
         if not ok:
             failed += 1
+            if not isinstance(test, re.Pattern):
+                hint = "" if args.keep else "; rerun with --keep DIR to see both"
+                print(f"     differs from {ref.name} in pixel rows {top}-{bottom - 1}{hint}")
             print("     screen was:\n" + "\n".join("     |" + l for l in text))
     if not args.keep:
         shutil.rmtree(shots)

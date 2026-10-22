@@ -64,11 +64,12 @@ Register addresses are in `src/drivers/hw.h`, taken from the toolchain headers a
 
 `make smoke` boots `bin/kernel.rom` in `cemu-headless`, types commands and takes screenshots. `tests/smoke.py` reads each screenshot back as text by matching 8x8 cells against the kernel's own font, then checks the output with regular expressions.
 
-Not yet covered automatically: the TI-OS loader. Testing it needs a ROM dumped from a real calculator, which can't be committed (it contains TI's code).
+`make smoke-tios` does the same for the TI-OS loader. It boots TI-OS from a ROM dumped from the user's own calculator, sends arTIfiCE and `KERNEL.8xp`, and starts the kernel from arTIfiCE's launcher. After the shell checks, it checks that each way out (`exit`, `2nd` `mode`, ON) returns to the launcher and that TI-OS still computes and starts programs afterwards. TI-OS screens can't be read with the kernel's font, so they are compared pixel for pixel with screenshots from earlier in the same run, below the status bar (its battery icon animates). The ROM contains TI's code and arTIfiCE isn't ours, so neither is in the repo: the test takes both as paths and isn't part of `make smoke`.
+
+One thing it can't check is the wait for key release on exit: arTIfiCE's launcher ignores a key still held when the kernel returns, so the test passes without the wait.
 
 ## Possible next steps
 
-- A smoke test for the TI-OS loader using a locally dumped ROM (CEmu's ROM dumper needs arTIfiCE).
 - Read-only access to TI-OS's archive (the variable table in flash), so the kernel can list and open files.
 - A cooperative task loop and timer-driven events, still without interrupts.
 - A calculator app on top of the shell.

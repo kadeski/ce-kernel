@@ -3,6 +3,9 @@
 #   make          bin/KERNEL.8xp for a real calculator (runs from TI-OS via arTIfiCE)
 #   make rom      bin/kernel.rom, a bare 4 MB image that boots in CEmu with no TI code
 #   make smoke    boots the ROM in headless CEmu and checks the shell responds
+#   make smoke-tios TIOS_ROM=... ARTIFICE=...
+#                 runs KERNEL.8xp from arTIfiCE in headless CEmu, using a ROM
+#                 dumped from your own calculator, and checks each way back
 #
 # Needs the CE C toolchain (https://github.com/CE-Programming/toolchain) on PATH.
 
@@ -63,10 +66,16 @@ $(ROM_IMAGE): $(ROM_ELF)
 smoke: rom
 	$(Q)python3 tests/smoke.py --rom $(ROM_IMAGE)
 
+# The ROM dump and arTIfiCE are never in the repo, so they are passed in.
+smoke-tios: $(BINDIR)/$(TARGET)
+	$(if $(TIOS_ROM),,$(error set TIOS_ROM to a ROM dumped from your calculator))
+	$(if $(ARTIFICE),,$(error set ARTIFICE to the arTIfiCE .8xp for that ROM's OS version))
+	$(Q)python3 tests/smoke.py --rom $(TIOS_ROM) --program $< --artifice $(ARTIFICE)
+
 clean: clean-rom
 clean-rom:
 	$(Q)$(call RMDIR,build)
 
 -include $(ROM_OBJECTS:.o=.d)
 
-.PHONY: rom smoke clean-rom
+.PHONY: rom smoke smoke-tios clean-rom
