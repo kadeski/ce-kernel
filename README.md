@@ -39,10 +39,10 @@ To try it by hand, open `bin/kernel.rom` in [CEmu](https://github.com/CE-Program
 
 Before you start, archive anything in RAM you care about. If the kernel ever hangs, the reset button on the back clears RAM.
 
-1. Check the OS version: press `2nd`, `+` (MEM), then `1` (About). **Never update past 5.8.4**: TI made 5.8.3 and later to block the jailbreak, and downgrades are blocked. Decline the updates TI Connect CE offers.
+1. Check the OS version: press `2nd`, `+` (MEM), then `1` (About). **Don't update the OS**: new versions patch the jailbreak (5.8.3 broke arTIfiCE v1, and v2 stops at 5.8.4), and downgrades are blocked. Decline the updates TI Connect CE offers.
 2. Install the jailbreak. On OS 5.5 to 5.8.4, download `arTIfiCE_v2.1.8xp` from the [arTIfiCE releases](https://github.com/YvanTT/arTIfiCE/releases) (on 5.8.5 use v3 instead) and send it with TI Connect CE. To start it: `prgm`, choose TI-Basic if asked, pick the first program, `enter`.
-3. Dump your ROM. In CEmu's setup screen choose "Create a ROM image from your calculator", save the dumper program, send it to the calculator and run it from arTIfiCE. Copy the `ROMData` variables it creates back to the Mac and drop them into CEmu. The ROM contains TI's code: keep it private and out of git (`.gitignore` already excludes `*.rom`).
-4. Test in CEmu with that ROM: send `bin/KERNEL.8xp`, start it from arTIfiCE, then check that `exit`, `2nd` `mode` and `on` each return to a clean home screen.
+3. Dump your ROM. In CEmu's setup screen choose "Create a ROM image from your calculator", save the dumper program, send it to the calculator and run it from arTIfiCE. It needs 65,793 bytes of free RAM and does nothing without them, so check RAM FREE under `2nd` `+` `2` first. Copy the `ROMData` variables it creates back to the Mac and drop them into CEmu. The ROM and the `ROMData` files contain TI's code: keep them private and outside the repo (`.gitignore` only excludes `*.rom`).
+4. Test in CEmu with that ROM. Its archive is empty, so send arTIfiCE as well as `bin/KERNEL.8xp`, then start the kernel from arTIfiCE. Check that `exit`, `2nd` `mode` and `on` each return to arTIfiCE's launcher, and that `mode` there quits to a working home screen.
 5. Send `bin/KERNEL.8xp` to the calculator and start it from arTIfiCE's launcher.
 
 Exam (Press-to-Test) mode deletes arTIfiCE; send it again afterwards.
