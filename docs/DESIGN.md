@@ -69,7 +69,6 @@ Register addresses are in `src/drivers/hw.h`, taken from the toolchain headers a
 
 One thing it can't check is the wait for key release on exit: arTIfiCE's launcher ignores a key still held when the kernel returns, so the test passes without the wait.
 
-## Possible next steps
+## Next steps
 
-- A cooperative task loop and timer-driven events, still without interrupts.
-- A calculator app on top of the shell.
+Planned work is tracked as GitHub issues with the [`roadmap` label](https://github.com/kadeski/ce-kernel/issues?q=label%3Aroadmap).
