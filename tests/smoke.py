@@ -160,8 +160,8 @@ def main() -> int:
     checks = []                         # (description, screenshot, test)
 
     def expect(desc, shot, pattern):
-        """Some line of the kernel's screen matches pattern."""
-        checks.append((desc, shot, re.compile(pattern)))
+        """The kernel's screen matches pattern, with ^ and $ at each line."""
+        checks.append((desc, shot, re.compile(pattern, re.MULTILINE)))
 
     def expect_same(desc, shot, ref, rows=TIOS_ROWS):
         """A TI-OS screen matches one from earlier in the run."""
@@ -184,7 +184,8 @@ def main() -> int:
         boot = s.screenshot()
     expect("status bar", boot, status_bar)
     expect("banner", boot, r"^type help and press ENTER$")
-    expect("prompt", boot, r"^> $|^>$")
+    # The key that started the kernel (ENTER in arTIfiCE) may still be down.
+    expect("one prompt, no stray key", boot, r"^type help and press ENTER\n>\n\n")
 
     expect("help lists commands", s.command("help"), r"^peek ADDR \[LEN\]$")
     loader = r"TI-OS \(asm program\)" if tios else r"bare ROM \(no TI code\)"
@@ -244,7 +245,7 @@ def main() -> int:
     for desc, shot, test in checks:
         text = screen_text(shot, font)
         if isinstance(test, re.Pattern):
-            ok = any(test.search(line) for line in text)
+            ok = test.search("\n".join(text)) is not None
         else:
             ref, (top, bottom) = test
             ok = read_bmp(shot)[top:bottom] == read_bmp(ref)[top:bottom]

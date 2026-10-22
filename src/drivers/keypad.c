@@ -15,6 +15,10 @@ void keypad_init(void)
     saved_on_latch = INT_ON_LATCH;
     INT_ON_LATCH = saved_on_latch & ~INT_ON_BIT;
     INT_ON_ACK = INT_ON_BIT;
+    /* A key still down from whatever started us (ENTER in arTIfiCE's
+     * launcher) isn't a press; keypad_poll reports it only once it is
+     * released and pressed again. */
+    keypad_scan(current);
 }
 
 void keypad_restore(void)

@@ -42,7 +42,8 @@ enum {
 
 #define KEYPAD_GROUPS 8
 
-/* Makes the ON key report its live state; keypad_restore undoes it. */
+/* Makes the ON key report its live state; keypad_restore undoes it. Keys
+ * already held when it runs are not reported as presses. */
 void keypad_init(void);
 void keypad_restore(void);
 
