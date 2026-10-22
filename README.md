@@ -46,7 +46,7 @@ Before you start, archive anything in RAM you care about. If the kernel ever han
    ```bash
    make smoke-tios TIOS_ROM=path/to/your.rom ARTIFICE=path/to/arTIfiCE_v2.1.8xp
    ```
-   This sends arTIfiCE and `bin/KERNEL.8xp` to a headless CEmu (the dumped ROM's archive is empty), starts the kernel from arTIfiCE and runs the shell checks. It then checks that `exit`, `2nd` `mode` and `on` each return to arTIfiCE's launcher, and that `mode` there quits to a home screen that still computes and runs programs. To try it by hand instead, open the ROM in CEmu, send both files and start the kernel from arTIfiCE.
+   This sends arTIfiCE and `bin/KERNEL.8xp` to a headless CEmu, plus a small AppVar to the archive for `ls` and `cat` to find (the dumped ROM's archive is empty), starts the kernel from arTIfiCE and runs the shell checks. It then checks that `exit`, `2nd` `mode` and `on` each return to arTIfiCE's launcher, and that `mode` there quits to a home screen that still computes and runs programs. To try it by hand instead, open the ROM in CEmu, send both files and start the kernel from arTIfiCE.
 5. Send `bin/KERNEL.8xp` to the calculator and start it from arTIfiCE's launcher.
 
 Exam (Press-to-Test) mode deletes arTIfiCE; send it again afterwards.
@@ -71,6 +71,8 @@ The shell starts in alpha lock, so keys type the green letters printed above the
 | `uptime` | seconds since the kernel started |
 | `keys` | live view of the key matrix (`clear` to stop) |
 | `peek ADDR [LEN]` | hex dump of flash or RAM (hex numbers) |
+| `ls` | list the variables in TI-OS's archive: type, name, size, where the data starts |
+| `cat NAME` | hex dump of an archived variable's data (the first 128 bytes) |
 | `echo TEXT` | print text |
 | `clear` | clear the screen |
 | `exit` | return to TI-OS (the bare ROM halts instead) |

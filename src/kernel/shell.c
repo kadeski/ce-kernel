@@ -1,4 +1,5 @@
 #include "shell.h"
+#include "archive.h"
 #include "console.h"
 #include "kernel.h"
 #include "keymap.h"
@@ -29,6 +30,8 @@ static void cmd_mem(uint8_t argc, char **argv);
 static void cmd_uptime(uint8_t argc, char **argv);
 static void cmd_keys(uint8_t argc, char **argv);
 static void cmd_peek(uint8_t argc, char **argv);
+static void cmd_ls(uint8_t argc, char **argv);
+static void cmd_cat(uint8_t argc, char **argv);
 static void cmd_echo(uint8_t argc, char **argv);
 static void cmd_exit(uint8_t argc, char **argv);
 
@@ -40,6 +43,8 @@ static const struct command commands[] = {
     { "uptime", "",              cmd_uptime },
     { "keys",   "",              cmd_keys },
     { "peek",   "ADDR [LEN]",    cmd_peek },
+    { "ls",     "",              cmd_ls },
+    { "cat",    "NAME",          cmd_cat },
     { "echo",   "TEXT...",       cmd_echo },
     { "exit",   "",              cmd_exit },
     { NULL, NULL, NULL },
@@ -183,6 +188,24 @@ static void cmd_echo(uint8_t argc, char **argv)
     console_newline();
 }
 
+static void dump(uint24_t addr, uint24_t len)
+{
+    const uint8_t *p = (const uint8_t *)addr;
+    for (uint24_t i = 0; i < len; i++) {
+        if (i % 8 == 0) {
+            if (i)
+                console_newline();
+            console_set_color(COLOR_DIM);
+            console_puthex(addr + i, 6);
+            console_putc(':');
+            console_set_color(COLOR_TEXT);
+        }
+        console_putc(' ');
+        console_puthex(p[i], 2);
+    }
+    console_newline();
+}
+
 static void cmd_peek(uint8_t argc, char **argv)
 {
     uint24_t addr, len = 64;
@@ -198,20 +221,101 @@ static void cmd_peek(uint8_t argc, char **argv)
         print_error("only flash and RAM can be read");
         return;
     }
-    const uint8_t *p = (const uint8_t *)addr;
-    for (uint24_t i = 0; i < len; i++) {
-        if (i % 8 == 0) {
-            if (i)
-                console_newline();
-            console_set_color(COLOR_DIM);
-            console_puthex(addr + i, 6);
-            console_putc(':');
-            console_set_color(COLOR_TEXT);
-        }
-        console_putc(' ');
-        console_puthex(p[i], 2);
+    dump(addr, len);
+}
+
+/* Up to this much of a variable is shown; peek reads the rest. */
+#define CAT_MAX 0x80
+
+static const char *type_name(uint8_t type)
+{
+    switch (type) {
+    case 0x00: return "real";
+    case 0x01: return "list";
+    case 0x02: return "matrix";
+    case 0x03: return "equ";
+    case 0x04: return "string";
+    case 0x05: return "prog";
+    case 0x06: return "pprog";
+    case 0x07: return "pic";
+    case 0x08: return "gdb";
+    case 0x0C: return "cplx";
+    case 0x0D: return "clist";
+    case 0x15: return "appvar";
+    case 0x17: return "group";
+    case 0x1A: return "image";
+    default:   return NULL;
     }
+}
+
+static void pad_to(uint8_t col)
+{
+    while (console_column() < col)
+        console_putc(' ');
+}
+
+static void cmd_ls(uint8_t argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+    console_set_color(COLOR_DIM);
+    console_puts("type   name     bytes  at");
     console_newline();
+    console_set_color(COLOR_TEXT);
+
+    struct archive_entry e;
+    uint24_t cursor = 0, count = 0;
+    while (archive_next(&cursor, &e)) {
+        const char *type = type_name(e.type);
+        if (type) {
+            console_puts(type);
+        } else {
+            console_puts("type");
+            console_puthex(e.type, 2);
+        }
+        pad_to(7);
+        /* Names of lists, matrices and the like are tokens, not text. */
+        for (uint8_t i = 0; i < e.name_len; i++)
+            console_putc(e.name[i] >= ' ' && e.name[i] <= '~' ? e.name[i] : '?');
+        pad_to(16);
+        console_putdec(e.size);
+        pad_to(23);
+        console_puthex((uint24_t)e.data, 6);
+        console_newline();
+        count++;
+    }
+    console_putdec(count);
+    console_puts(count == 1 ? " file" : " files");
+    console_newline();
+}
+
+static void cmd_cat(uint8_t argc, char **argv)
+{
+    struct archive_entry e;
+    if (argc != 2) {
+        print_error("usage: cat NAME");
+        return;
+    }
+    if (!archive_find(argv[1], &e)) {
+        console_set_color(COLOR_ERROR);
+        console_puts("not in archive: ");
+        console_puts(argv[1]);
+        console_newline();
+        console_set_color(COLOR_TEXT);
+        return;
+    }
+    if (e.size)
+        dump((uint24_t)e.data, e.size < CAT_MAX ? e.size : CAT_MAX);
+    if (e.size > CAT_MAX) {
+        console_set_color(COLOR_DIM);
+        console_puts("first ");
+        console_putdec(CAT_MAX);
+        console_puts(" of ");
+        console_putdec(e.size);
+        console_puts(" bytes; peek for more");
+        console_newline();
+        console_set_color(COLOR_TEXT);
+    }
 }
 
 /* Live view of the key matrix, for checking the keypad driver. */

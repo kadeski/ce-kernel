@@ -5,8 +5,9 @@ There is one mode per loader:
     smoke.py --rom bin/kernel.rom
         boots the bare ROM straight into the kernel.
     smoke.py --rom DUMP.rom --program bin/KERNEL.8xp --artifice arTIfiCE.8xp
-        boots TI-OS from a ROM dumped from a calculator, sends both programs,
-        starts the kernel from arTIfiCE's launcher and checks each way back.
+        boots TI-OS from a ROM dumped from a calculator, sends both programs
+        and an AppVar for the archive, starts the kernel from arTIfiCE's
+        launcher and checks each way back.
 
 The kernel's screen is read back as text: the console draws an 8x8 font on a
 fixed grid, so each 8x8 cell of a screenshot is matched against the kernel's
@@ -46,6 +47,16 @@ NUMBER_KEYS = {str(d): str(d) for d in range(10)} | {
     ".": "dot", ",": "comma", "+": "add", "-": "sub", "*": "mul", "/": "div",
     "^": "pow", "(": "lpar", ")": "rpar",
 }
+
+
+def appvar_8xv(name: str, text: bytes) -> bytes:
+    """A TI-OS AppVar file with text as its contents, for sending to the archive."""
+    data = len(text).to_bytes(2, "little") + text
+    entry = (b"\x0d\x00" + len(data).to_bytes(2, "little") + b"\x15"
+             + name.encode().ljust(8, b"\0") + b"\x00\x80"
+             + len(data).to_bytes(2, "little") + data)
+    head = b"**TI83F*\x1a\x0a\x00" + bytes(42) + len(entry).to_bytes(2, "little")
+    return head + entry + (sum(entry) & 0xFFFF).to_bytes(2, "little")
 
 
 def load_font() -> dict[tuple[int, ...], str]:
@@ -169,10 +180,18 @@ def main() -> int:
 
     status_bar = r"^ ce-kernel 0\.1\.0 +a \d+s$"
     if tios:
+        # An AppVar, so the prgm menu still holds only arTIfiCE and KERNEL.
+        # The first copy is overwritten, which leaves a deleted entry before
+        # the second.
+        old_appvar, appvar = shots / "SMOKE-old.8xv", shots / "SMOKE.8xv"
+        old_appvar.write_bytes(appvar_8xv("SMOKE", b"old"))
+        appvar.write_bytes(appvar_8xv("SMOKE", b"hello archive"))
         s.lines += [
             "run 8000",                 # TI-OS boots to "RAM Cleared"
             f"send-file {args.artifice}",
             f"send-file {args.program}",
+            f"send-file archive {old_appvar}",
+            f"send-file archive {appvar}",
             "keys clear,1,add,1,enter",
             "run 500",
         ]
@@ -194,6 +213,14 @@ def main() -> int:
     expect("echo", s.command("echo hi there"), r"^hi there$")
     expect("peek reads flash", s.command("peek 30000 8"), r"^030000: [0-9A-F]{2}( [0-9A-F]{2}){7}$")
     expect("peek refuses I/O", s.command("peek e30000"), r"^only flash and RAM can be read$")
+    if tios:
+        expect("ls lists the archived AppVar", s.command("ls"), r"^appvar +SMOKE +15 +[0-9A-F]{6}$")
+        # Its size word (13), then "hello archive".
+        expect("cat shows its data", s.command("cat smoke"),
+               r"^[0-9A-F]{6}: 0D 00 68 65 6C 6C 6F 20\n[0-9A-F]{6}: 61 72 63 68 69 76 65$")
+    else:
+        expect("ls finds no archive in the bare ROM", s.command("ls"), r"^0 files$")
+    expect("cat of a missing file", s.command("cat nosuch"), r"^not in archive: nosuch$")
     expect("uptime", s.command("uptime"), r"^\d+\.\d{3} s$")
     expect("unknown command", s.command("xyzzy"), r"^unknown command: xyzzy$")
     expect("clear", s.command("clear"), r"^> $|^>$")

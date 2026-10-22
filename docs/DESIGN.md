@@ -58,18 +58,18 @@ Register addresses are in `src/drivers/hw.h`, taken from the toolchain headers a
 - **LCD:** ARM PL111 controller at `E30000`. It scans 240-pixel lines x 320 lines because the panel is mounted rotated; the panel's own settings make a row-major 320x240 framebuffer appear the right way up. 8bpp mode uses a 256-entry palette of 1555 colours (with the BGR bit set, red is bits 10-14).
 - **Keypad:** controller at `F50000`. The kernel uses scan-once mode (as the toolchain's keypadc does) and keeps whatever row timing is already set. Seven 8-bit groups; key code = group x 8 + bit.
 - **Timer:** timer 1 counts the 32,768 Hz crystal upwards. 32-bit reads are repeated until two agree, because the CPU reads it one byte at a time.
+- **Archive:** TI-OS keeps archived variables in the 64 KB flash sectors from `0C0000` up to `3B0000`; the sector at `3B0000` holds TI data even when the archive is empty. This was seen in CEmu with OS 5.8.1, not taken from TI documentation. A sector in use starts with `F0`; entries follow it and never cross into the next sector, so a variable too big for the space left starts a new sector. Each entry is: flag (`FC` valid, `F0` deleted), a 16-bit size of the rest, type, type2, version, the entry's own 24-bit address, name length, name, then the data as TI-OS stores it (programs and AppVars start with their own 16-bit size). The kernel only reads it, and skips any sector or entry it doesn't recognise. A real calculator also has flash apps, which the dumped ROM lacks, so how they sit in flash hasn't been checked.
 - **ON key:** bit 0 of `F00020`. TI-OS may leave it latched (stays set after release), so the kernel turns latching off and restores the old setting on exit.
 
 ## Testing
 
 `make smoke` boots `bin/kernel.rom` in `cemu-headless`, types commands and takes screenshots. `tests/smoke.py` reads each screenshot back as text by matching 8x8 cells against the kernel's own font, then checks the output with regular expressions.
 
-`make smoke-tios` does the same for the TI-OS loader. It boots TI-OS from a ROM dumped from the user's own calculator, sends arTIfiCE and `KERNEL.8xp`, and starts the kernel from arTIfiCE's launcher. After the shell checks, it checks that each way out (`exit`, `2nd` `mode`, ON) returns to the launcher and that TI-OS still computes and starts programs afterwards. TI-OS screens can't be read with the kernel's font, so they are compared pixel for pixel with screenshots from earlier in the same run, below the status bar (its battery icon animates). The ROM contains TI's code and arTIfiCE isn't ours, so neither is in the repo: the test takes both as paths and isn't part of `make smoke`.
+`make smoke-tios` does the same for the TI-OS loader. It boots TI-OS from a ROM dumped from the user's own calculator, sends arTIfiCE, `KERNEL.8xp` and a small AppVar for the archive (twice, so the first copy is left behind as a deleted entry), and starts the kernel from arTIfiCE's launcher. After the shell checks, it checks that each way out (`exit`, `2nd` `mode`, ON) returns to the launcher and that TI-OS still computes and starts programs afterwards. TI-OS screens can't be read with the kernel's font, so they are compared pixel for pixel with screenshots from earlier in the same run, below the status bar (its battery icon animates). The ROM contains TI's code and arTIfiCE isn't ours, so neither is in the repo: the test takes both as paths and isn't part of `make smoke`.
 
 One thing it can't check is the wait for key release on exit: arTIfiCE's launcher ignores a key still held when the kernel returns, so the test passes without the wait.
 
 ## Possible next steps
 
-- Read-only access to TI-OS's archive (the variable table in flash), so the kernel can list and open files.
 - A cooperative task loop and timer-driven events, still without interrupts.
 - A calculator app on top of the shell.
