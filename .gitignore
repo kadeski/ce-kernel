@@ -1,0 +1,6 @@
+/bin/
+/obj/
+/build/
+# ROM dumps from a real calculator contain TI's copyrighted code: never commit them.
+*.rom
+*.ce
