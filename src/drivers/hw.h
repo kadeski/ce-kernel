@@ -2,9 +2,9 @@
  * TI-84 Plus CE hardware register map.
  *
  * Only the registers the kernel touches are listed. Addresses come from the
- * CE C toolchain headers (sys/lcd.h, sys/timers.h, keypadc.h, ti84pceg.inc)
- * and were cross-checked against the CEmu emulator core (core/lcd.c,
- * core/keypad.c, core/timers.c, core/spi.c).
+ * CE C toolchain headers (sys/lcd.h, sys/timers.h, sys/rtc.h, keypadc.h,
+ * ti84pceg.inc) and were cross-checked against the CEmu emulator core
+ * (core/lcd.c, core/keypad.c, core/timers.c, core/realclock.c, core/spi.c).
  */
 
 #ifndef DRIVERS_HW_H
@@ -53,6 +53,17 @@
 #define TMR1_CRYSTAL (1 << 1)           /* count the 32768 Hz crystal, not the CPU clock */
 #define TMR1_INT     (1 << 2)
 #define TMR1_COUNTUP (1 << 9)
+
+/* Real-time clock. The time registers hold a copy of the counter that the
+ * RTC takes once a second while RTC_CTRL_LATCH is set; reading them has no
+ * side effects. Hours are 0-23. */
+#define RTC_SECONDS REG8(0xF30000)
+#define RTC_MINUTES REG8(0xF30004)
+#define RTC_HOURS   REG8(0xF30008)
+#define RTC_CONTROL REG8(0xF30020)
+
+#define RTC_CTRL_ENABLE (1 << 0)        /* count seconds */
+#define RTC_CTRL_LATCH  (1 << 7)        /* copy the count to the time registers ("unfreeze" in sys/rtc.h) */
 
 /* Keypad controller */
 #define KB_MODE   REG8(0xF50000)        /* bits 0-1: mode; bits 2-7: low bits of row wait */

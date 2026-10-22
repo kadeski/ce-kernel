@@ -24,7 +24,7 @@ rom/                      bare ROM loader -> bin/kernel.rom (CEmu only)
 
 Built with the toolchain's stock makefile and startup code (`crt0`). Before `main()`, crt0 turns off the run indicator and the USB timer and disables interrupts. After `main()` returns, it restores flash wait states, timer bits and TI-OS flags and redraws the home screen. Those calls are the handoff with TI-OS, not part of the kernel.
 
-The kernel saves and restores everything it changes: LCD control and base address, timer 1, and the ON-key latch setting. It waits for all keys to be released before returning so TI-OS doesn't see a stray key press. RAM is not cleared on exit.
+The kernel saves and restores everything it changes: LCD control and base address, timer 1, and the ON-key latch setting. It only reads the real-time clock. It waits for all keys to be released before returning so TI-OS doesn't see a stray key press. RAM is not cleared on exit.
 
 Memory while running:
 
@@ -37,7 +37,7 @@ Memory while running:
 
 ### Bare ROM loader (emulator)
 
-A complete 4 MB flash image: reset vector at 0, a model header at `0x020000` (CEmu won't load an image without it), code from `0x030000`. `rom/boot.c` does what TI's boot code and OS normally do: wake the LCD panel over SPI, program the LCD controller timing, set the keypad matrix size and scan timing, set the backlight. It then calls the same `kmain`.
+A complete 4 MB flash image: reset vector at 0, a model header at `0x020000` (CEmu won't load an image without it), code from `0x030000`. `rom/boot.c` does what TI's boot code and OS normally do: wake the LCD panel over SPI, program the LCD controller timing, set the keypad matrix size and scan timing, set the backlight, start the real-time clock. It then calls the same `kmain`.
 
 It is linked only against the toolchain's pure `libc.a` and `libcrt.a`, never the `_os` variants, and `rom/check_no_os_calls.py` fails the build if any code calls or jumps below `0x030000`. So a passing ROM build is also proof that the kernel needs no TI code.
 
@@ -67,6 +67,11 @@ Register addresses are in `src/drivers/hw.h`, taken from the toolchain headers a
 - **LCD:** ARM PL111 controller at `E30000`. It scans 240-pixel lines x 320 lines because the panel is mounted rotated; the panel's own settings make a row-major 320x240 framebuffer appear the right way up. 8bpp mode uses a 256-entry palette of 1555 colours (with the BGR bit set, red is bits 10-14).
 - **Keypad:** controller at `F50000`. The kernel uses scan-once mode (as the toolchain's keypadc does) and keeps whatever row timing is already set. Seven 8-bit groups; key code = group x 8 + bit.
 - **Timer:** timer 1 counts the 32,768 Hz crystal upwards. 32-bit reads are repeated until two agree, because the CPU reads it one byte at a time.
+- **Real-time clock:** seconds, minutes and hours (0-23) at `F30000`, `F30004` and `F30008`, a 16-bit day count at `F3000C`, control at `F30020`. Control bit 0 makes it count and bit 7 makes it copy the count into the time registers (the toolchain calls it "unfreeze"); bits 1-5 enable its interrupts and bit 6 loads a new time. The time registers hold that copy, taken once a second about half a second after the count ticks, so they are never more than a second behind. The kernel reads seconds, minutes, hours and seconds again, and retries if the seconds changed, so an update between reads can't mix two times.
+  - Reading has no side effects: the interrupt status at `F30034` is cleared only by writing 1s to it, and the hardware clears the load bit itself when a load finishes. This is from CEmu's model (`core/realclock.c`), not checked on hardware.
+  - Writing control with bit 6 set starts a load from the load registers, which hold the last time that was set. So the kernel never writes control on a calculator, not even to restore it: if TI-OS was still loading a time when the kernel started, writing back the value read then would set the clock back.
+  - TI-OS 5.8.1 leaves control at `95` in CEmu (counting, copying, minute and day interrupts on). At reset it is 0 and the count is day 0, 00:00:00, so the bare ROM sets bits 0 and 7 and the clock counts from midnight.
+  - The status bar shows 24-hour time, whatever TI-OS's 12/24-hour setting is.
 - **Archive:** TI-OS keeps archived variables in the 64 KB flash sectors from `0C0000` up to `3B0000`; the sector at `3B0000` holds TI data even when the archive is empty. This was seen in CEmu with OS 5.8.1, not taken from TI documentation. A sector in use starts with `F0`; entries follow it and never cross into the next sector, so a variable too big for the space left starts a new sector. Each entry is: flag (`FC` valid, `F0` deleted), a 16-bit size of the rest, type, type2, version, the entry's own 24-bit address, name length, name, then the data as TI-OS stores it (programs and AppVars start with their own 16-bit size). The kernel only reads it, and skips any sector or entry it doesn't recognise. A real calculator also has flash apps, which the dumped ROM lacks, so how they sit in flash hasn't been checked.
 - **ON key:** bit 0 of `F00020`. TI-OS may leave it latched (stays set after release), so the kernel turns latching off and restores the old setting on exit.
 
@@ -74,7 +79,7 @@ Register addresses are in `src/drivers/hw.h`, taken from the toolchain headers a
 
 `make smoke` boots `bin/kernel.rom` in `cemu-headless`, types commands and takes screenshots. `tests/smoke.py` reads each screenshot back as text by matching 8x8 cells against the kernel's own font, then checks the output with regular expressions.
 
-`make smoke-tios` does the same for the TI-OS loader. It boots TI-OS from a ROM dumped from the user's own calculator, sends arTIfiCE, `KERNEL.8xp` and a small AppVar for the archive (twice, so the first copy is left behind as a deleted entry), and starts the kernel from arTIfiCE's launcher. After the shell checks, it checks that each way out (`exit`, `2nd` `mode`, ON) returns to the launcher and that TI-OS still computes and starts programs afterwards. TI-OS screens can't be read with the kernel's font, so they are compared pixel for pixel with screenshots from earlier in the same run, below the status bar (its battery icon animates). The ROM contains TI's code and arTIfiCE isn't ours, so neither is in the repo: the test takes both as paths and isn't part of `make smoke`.
+`make smoke-tios` does the same for the TI-OS loader. It boots TI-OS from a ROM dumped from the user's own calculator, sends arTIfiCE, `KERNEL.8xp` and a small AppVar for the archive (twice, so the first copy is left behind as a deleted entry), runs a TI-Basic program that sets TI-OS's clock to 13:45, and starts the kernel from arTIfiCE's launcher. The kernel's status bar must then show 13:45. Both tests hold a key in `keys` for 61 seconds, so the clock's minute must change while a command runs. After the shell checks, it checks that each way out (`exit`, `2nd` `mode`, ON) returns to the launcher and that TI-OS still computes and starts programs afterwards. TI-OS screens can't be read with the kernel's font, so they are compared pixel for pixel with screenshots from earlier in the same run, below the status bar (its battery icon animates). The ROM contains TI's code and arTIfiCE isn't ours, so neither is in the repo: the test takes both as paths and isn't part of `make smoke`.
 
 One thing it can't check is the wait for key release on exit: arTIfiCE's launcher ignores a key still held when the kernel returns, so the test passes without the wait.
 

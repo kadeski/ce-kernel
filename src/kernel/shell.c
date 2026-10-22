@@ -6,6 +6,7 @@
 #include "keymap.h"
 #include "../drivers/hw.h"
 #include "../drivers/keypad.h"
+#include "../drivers/rtc.h"
 #include "../drivers/timer.h"
 
 #include <string.h>
@@ -399,14 +400,13 @@ static void prompt(void)
     line[0] = '\0';
 }
 
-/* Redraws the status bar. A timer event runs it every second for the uptime,
+/* Redraws the status bar. A timer event runs it every second for the clock,
  * and the shell loop when a key changes the typing layer. */
 static void update_status(void)
 {
-    static char right[16];              /* longest: "2nd a 99999s" */
-    uint32_t second = timer_ms() / 1000;
+    static char right[12];              /* longest: "2nd a 23:59" */
 
-    /* "[2nd] a  12345s" */
+    /* "[2nd] a HH:MM" */
     uint8_t i = 0;
     if (keys.second) {
         memcpy(&right[i], "2nd ", 4);
@@ -414,16 +414,17 @@ static void update_status(void)
     }
     right[i++] = keys.alpha ? 'a' : '1';
     right[i++] = ' ';
-    char digits[6];
-    uint8_t n = 0;
-    uint32_t s = second % 100000;
-    do {
-        digits[n++] = (char)('0' + s % 10);
-        s /= 10;
-    } while (s);
-    while (n)
-        right[i++] = digits[--n];
-    right[i++] = 's';
+    struct rtc_time now;
+    if (rtc_read(&now)) {
+        right[i++] = (char)('0' + now.hours / 10);
+        right[i++] = (char)('0' + now.hours % 10);
+        right[i++] = ':';
+        right[i++] = (char)('0' + now.minutes / 10);
+        right[i++] = (char)('0' + now.minutes % 10);
+    } else {
+        memcpy(&right[i], "--:--", 5);
+        i += 5;
+    }
     right[i] = '\0';
 
     console_status(" " KERNEL_NAME " " KERNEL_VERSION, right);

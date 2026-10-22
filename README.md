@@ -46,14 +46,14 @@ Before you start, archive anything in RAM you care about. If the kernel ever han
    ```bash
    make smoke-tios TIOS_ROM=path/to/your.rom ARTIFICE=path/to/arTIfiCE_v2.1.8xp
    ```
-   This sends arTIfiCE and `bin/KERNEL.8xp` to a headless CEmu, plus a small AppVar to the archive for `ls` and `cat` to find (the dumped ROM's archive is empty), starts the kernel from arTIfiCE and runs the shell checks. It then checks that `exit`, `2nd` `mode` and `on` each return to arTIfiCE's launcher, and that `mode` there quits to a home screen that still computes and runs programs. To try it by hand instead, open the ROM in CEmu, send both files and start the kernel from arTIfiCE.
+   This sends arTIfiCE and `bin/KERNEL.8xp` to a headless CEmu, plus a small AppVar to the archive for `ls` and `cat` to find (the dumped ROM's archive is empty) and a TI-Basic program `ZCLOCK` that sets the clock to 13:45 for the status bar to show. It starts the kernel from arTIfiCE, runs the shell checks, and then checks that `exit`, `2nd` `mode` and `on` each return to arTIfiCE's launcher, and that `mode` there quits to a home screen that still computes and runs programs. To try it by hand instead, open the ROM in CEmu, send both files and start the kernel from arTIfiCE.
 5. Send `bin/KERNEL.8xp` to the calculator and start it from arTIfiCE's launcher.
 
 Exam (Press-to-Test) mode deletes arTIfiCE; send it again afterwards.
 
 ## Using the shell
 
-The shell starts in alpha lock, so keys type the green letters printed above them. `alpha` toggles between letters and digits; `2nd` applies to the next key only. The top-right corner shows `a` (letters) or `1` (digits).
+The shell starts in alpha lock, so keys type the green letters printed above them. `alpha` toggles between letters and digits; `2nd` applies to the next key only. The top-right corner shows `a` (letters) or `1` (digits), then the time from the calculator's clock in 24-hour format.
 
 | Key | Does |
 |---|---|
@@ -81,7 +81,7 @@ The shell starts in alpha lock, so keys type the green letters printed above the
 ## Layout
 
 ```
-src/drivers/   lcd, keypad, timer drivers and the hardware register map
+src/drivers/   lcd, keypad, timer, real-time clock drivers and the hardware register map
 src/kernel/    kmain, console, shell, events, keymap, font
 src/tios/      TI-OS loader (KERNEL.8xp only)
 rom/           bare ROM loader: reset code, cold hardware init, linker script

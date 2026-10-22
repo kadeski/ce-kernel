@@ -3,6 +3,7 @@
 #include "shell.h"
 #include "../drivers/keypad.h"
 #include "../drivers/lcd.h"
+#include "../drivers/rtc.h"
 #include "../drivers/timer.h"
 
 const struct boot_info *kernel_boot;
@@ -25,6 +26,7 @@ int kmain(const struct boot_info *boot)
 
     timer_init();
     keypad_init();
+    rtc_init();
     set_palette();
     lcd_init();
     console_init();
@@ -49,6 +51,7 @@ int kmain(const struct boot_info *boot)
     }
 
     lcd_restore();
+    rtc_restore();
     keypad_restore();
     timer_restore();
     return 0;

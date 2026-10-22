@@ -6,8 +6,8 @@ There is one mode per loader:
         boots the bare ROM straight into the kernel.
     smoke.py --rom DUMP.rom --program bin/KERNEL.8xp --artifice arTIfiCE.8xp
         boots TI-OS from a ROM dumped from a calculator, sends both programs
-        and an AppVar for the archive, starts the kernel from arTIfiCE's
-        launcher and checks each way back.
+        and an AppVar for the archive, sets TI-OS's clock, starts the kernel
+        from arTIfiCE's launcher and checks each way back.
 
 The kernel's screen is read back as text: the console draws an 8x8 font on a
 fixed grid, so each 8x8 cell of a screenshot is matched against the kernel's
@@ -49,11 +49,11 @@ NUMBER_KEYS = {str(d): str(d) for d in range(10)} | {
 }
 
 
-def appvar_8xv(name: str, text: bytes) -> bytes:
-    """A TI-OS AppVar file with text as its contents, for sending to the archive."""
-    data = len(text).to_bytes(2, "little") + text
-    entry = (b"\x0d\x00" + len(data).to_bytes(2, "little") + b"\x15"
-             + name.encode().ljust(8, b"\0") + b"\x00\x80"
+def ti_var(type_id: int, name: str, body: bytes, archived: bool) -> bytes:
+    """A TI-OS variable file (.8xv, .8xp) holding body, for send-file."""
+    data = len(body).to_bytes(2, "little") + body
+    entry = (b"\x0d\x00" + len(data).to_bytes(2, "little") + bytes([type_id])
+             + name.encode().ljust(8, b"\0") + b"\x00" + (b"\x80" if archived else b"\x00")
              + len(data).to_bytes(2, "little") + data)
     head = b"**TI83F*\x1a\x0a\x00" + bytes(42) + len(entry).to_bytes(2, "little")
     return head + entry + (sum(entry) & 0xFFFF).to_bytes(2, "little")
@@ -182,20 +182,28 @@ def main() -> int:
         """pattern matches both kernel screens, and its first group differs."""
         checks.append((desc, shot, (earlier, re.compile(pattern, re.MULTILINE))))
 
-    status_bar = r"^ ce-kernel 0\.2\.0 +a (\d+)s$"
+    status_bar = r"^ ce-kernel 0\.2\.0 +a (\d\d:\d\d)$"
     if tios:
-        # An AppVar, so the prgm menu still holds only arTIfiCE and KERNEL.
-        # The first copy is overwritten, which leaves a deleted entry before
-        # the second.
+        # An AppVar, so the prgm menu doesn't change. The first copy is
+        # overwritten, which leaves a deleted entry before the second.
         old_appvar, appvar = shots / "SMOKE-old.8xv", shots / "SMOKE.8xv"
-        old_appvar.write_bytes(appvar_8xv("SMOKE", b"old"))
-        appvar.write_bytes(appvar_8xv("SMOKE", b"hello archive"))
+        old_appvar.write_bytes(ti_var(0x15, "SMOKE", b"old", archived=True))
+        appvar.write_bytes(ti_var(0x15, "SMOKE", b"hello archive", archived=True))
+        # A TI-Basic program, setTime(13,45,0), to give TI-OS's clock a time
+        # the kernel must show. Its name sorts after arTIfiCE's and KERNEL in
+        # the prgm menu.
+        set_time, comma, rparen = b"\xef\x01", b"\x2b", b"\x11"     # tokens; digits are ASCII
+        clock = shots / "ZCLOCK.8xp"
+        clock.write_bytes(ti_var(0x05, "ZCLOCK", set_time + b"13" + comma + b"45" + comma + b"0" + rparen,
+                                 archived=False))
         s.lines += [
             "run 8000",                 # TI-OS boots to "RAM Cleared"
             f"send-file {args.artifice}",
             f"send-file {args.program}",
             f"send-file archive {old_appvar}",
             f"send-file archive {appvar}",
+            f"send-file {clock}",
+            "keys clear,prgm", "run 500", "keys up,enter", "run 500", "keys enter", "run 500",
             "keys clear,1,add,1,enter",
             "run 500",
         ]
@@ -206,6 +214,10 @@ def main() -> int:
         s.lines.append("run 1500")
         boot = s.screenshot()
     expect("status bar", boot, status_bar)
+    if tios:
+        expect("the status bar shows TI-OS's time", boot, r" 13:45$")
+    else:
+        expect("the bare ROM's clock starts at 00:00", boot, r" 00:00$")
     expect("banner", boot, r"^type help and press ENTER$")
     # The key that started the kernel (ENTER in arTIfiCE) may still be down.
     expect("one prompt, no stray key", boot, r"^type help and press ENTER\n>\n\n")
@@ -233,8 +245,9 @@ def main() -> int:
     s.lines += ["keys enter", "keys down:9", "run 200"]
     held = s.screenshot()
     expect("keys shows a held key", held, r"^5 \. \. \. # ")
-    s.lines.append("run 1100")
-    expect_changed("the status bar ticks during keys", s.screenshot(), held, status_bar)
+    # The bar shows only HH:MM, so wait for the minute to change.
+    s.lines.append("run 61000")
+    expect_changed("the status bar's clock runs during keys", s.screenshot(), held, status_bar)
     s.lines += ["keys up:9", "keys clear", "run 200"]
 
     # ON stops the command, and only the command: on a calculator, a press
@@ -259,7 +272,10 @@ def main() -> int:
         s.lines += ["keys mode", "run 1500", "keys clear,1,add,1,enter", "run 500"]
         expect_same("TI-OS home screen works", s.screenshot(), home, HOME_ROWS)
         expect_same("arTIfiCE starts again", s.start_artifice(), launcher)
-        expect("the kernel starts again", s.start_kernel(), status_bar)
+        again = s.start_kernel()
+        expect("the kernel starts again", again, status_bar)
+        # keys alone took over a minute, so the clock has moved on from 13:45.
+        expect("TI-OS's clock kept running through each exit", again, r" 13:4[6-9]$")
     else:
         # ON exits on a calculator; the bare ROM has nowhere to go and must ignore it.
         s.lines += ["key on", "run 200"]

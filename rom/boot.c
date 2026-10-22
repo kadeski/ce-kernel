@@ -86,6 +86,14 @@ static void keypad_init(void)
     KB_CONFIG = KB_MODE_IDLE | ((uint32_t)0x100 << 2) | ((uint32_t)0x100 << 16);
 }
 
+static void rtc_start(void)
+{
+    /* At reset the clock is stopped at day 0, 00:00:00. Nothing here knows
+     * the real time, so it counts from there. TI-OS also enables the minute
+     * and day interrupts, which the kernel doesn't use. */
+    RTC_CONTROL = RTC_CTRL_ENABLE | RTC_CTRL_LATCH;
+}
+
 void rom_main(void)
 {
     struct boot_info boot = {
@@ -99,5 +107,6 @@ void rom_main(void)
     panel_init();
     lcd_controller_init();
     keypad_init();
+    rtc_start();
     kmain(&boot);
 }
