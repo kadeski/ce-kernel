@@ -1,5 +1,7 @@
 # ce-kernel
 
+[![CI](https://github.com/kadeski/ce-kernel/actions/workflows/ci.yml/badge.svg)](https://github.com/kadeski/ce-kernel/actions/workflows/ci.yml)
+
 An open-source kernel for the TI-84 Plus CE family, including the Python Edition.
 
 It boots into a menu of discrete math tools, with a notes viewer, an exact-fraction calculator and a shell, all on its own drivers for the screen, keypad and timers. Once it starts, no Texas Instruments code runs until you exit.
