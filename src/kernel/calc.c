@@ -1,11 +1,11 @@
 #include "calc.h"
-#include "console.h"
 #include "events.h"
-#include "keymap.h"
 #include "shell.h"
-#include "ui.h"
 #include "../core/expr.h"
 #include "../drivers/keypad.h"
+#include "../ui/console.h"
+#include "../ui/keymap.h"
+#include "../ui/ui.h"
 
 #include <string.h>
 

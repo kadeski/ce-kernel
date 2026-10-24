@@ -1,5 +1,5 @@
-#ifndef KERNEL_KEYMAP_H
-#define KERNEL_KEYMAP_H
+#ifndef UI_KEYMAP_H
+#define UI_KEYMAP_H
 
 #include <stdbool.h>
 #include <stdint.h>

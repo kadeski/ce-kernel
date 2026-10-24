@@ -9,9 +9,10 @@ ce-kernel is a **takeover kernel**: TI-OS starts it as an assembly program, and 
 ```
 src/tios/  rom/      loaders: fill in a boot_info and call kmain
   │
-src/kernel/          kmain, the menu and its screens (ui, console, shell, calc, notes),
-  │                  kernel_poll() and timer events, the archive reader, keymap, font
+src/kernel/          kmain, the menu and its screens (shell, calc, notes),
+  │                  kernel_poll() and timer events, the archive reader
   ├── src/discrete/  the study tools, one section per file, listed by the menu
+  ├── src/ui/        what the screens share: console, font, keymap, lists, views, forms
   ├── src/drivers/   the hardware: LCD, keypad, timer, real-time clock, register map
   └── src/core/      pure math: checked 64-bit integers, exact fractions, expressions
 ```
@@ -20,7 +21,8 @@ src/kernel/          kmain, the menu and its screens (ui, console, shell, calc, 
 
 - `src/core/` includes nothing outside itself but the C library: no hardware, no screen. It is plain C that could be built and tested anywhere.
 - `src/drivers/` includes only `src/drivers/`. Each driver that changes hardware state saves it in `*_init` and puts it back in `*_restore`.
-- `src/discrete/` builds on `src/kernel/`'s forms (`ui.h`) and `src/core/`. Each section is a table of tools, and `home[]` in `src/kernel/menu.c` lists the sections.
+- `src/ui/` includes `src/ui/`, `src/core/`, `src/drivers/` and one kernel header, `src/kernel/events.h`, because every loop calls `kernel_poll()` and the status bar's clock is a timer event. Anything else it needs from above is handed in: `menu_run()` gives `ui_status_start()` the status bar's name and `ui_set_notes()` the notes viewer the WINDOW key opens.
+- `src/discrete/` builds on `src/ui/`'s forms (`ui.h`) and `src/core/`. Each section is a table of tools, and `home[]` in `src/kernel/menu.c` lists the sections.
 - Only the loaders know about TI-OS. Nothing else includes `ti/*` or `tice.h`.
 
 `make` builds `bin/KERNEL.8xp` from everything under `src/`, with objects in `build/tios/`. `make rom` builds `bin/kernel.rom` from `src/` minus `src/tios/`, plus `rom/`, with objects in `build/rom/`. `rom/` stays outside `src/` because the toolchain's stock makefile compiles every file under `src/` into the TI-OS program. How this maps onto the shared project template is in [ADR 0001](adr/0001-standard-layout.md).
@@ -67,7 +69,7 @@ There are no threads ([ADR 0004](adr/0004-poll-with-interrupts-off.md)). The she
 
 ## Menu and study tools
 
-`kmain` starts `menu_run()`, a numbered list of the tool sections, Notes, the calculator and the shell. Every screen is built from `src/kernel/ui.c`:
+`kmain` starts `menu_run()`, a numbered list of the tool sections, Notes, the calculator and the shell. Every screen is built from `src/ui/ui.c`:
 
 - **Lists** (`ui_list`): a digit picks an entry in either typing layer, or UP, DOWN and ENTER. CLEAR goes back.
 - **Forms** (`ui_tool`): one field per line, typed with the shell's line editor. UP and DOWN move between fields, and ENTER reads them all and runs the tool, or first moves to a required field left empty. Number fields take expressions, so `1/6` or `0.8^6*0.2^4` work. The five keys under the screen are soft keys: Y= shows the steps, WINDOW the notes, GRAPH goes back.
@@ -93,8 +95,8 @@ The toolchain's clang 19 miscompiled one function that returned an `int64_t` str
 - **A shell command** is a row in `commands[]` in `src/kernel/shell.c`.
 - **A driver** is a file pair in `src/drivers/`, with its `*_init` and `*_restore` called from `kmain`.
 - **Pure logic** with no screen or hardware goes in `src/core/`.
+- **A screen part** that more than one screen uses (a kind of list, view or field) goes in `src/ui/`; a screen itself stays in `src/kernel/`.
 - **A third loader**, such as one for a boot-code exploit, is a folder beside `src/tios/` and `rom/` that fills in a `boot_info` and calls `kmain`.
-- **`src/kernel/`** is past the template's guide of about 10 files. The next split is `src/ui/` for `console`, `font8x8`, `keymap` and `ui`. What is in the way: `ui.c` calls `notes_open()` for the WINDOW key, which would make `ui/` include a screen above it, and `tests/smoke.py` reads `src/kernel/font8x8.c` by path.
 
 ## Hardware notes
 

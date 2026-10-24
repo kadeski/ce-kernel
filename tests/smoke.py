@@ -34,7 +34,7 @@ COLS, ROWS = 40, 30
 TIOS_ROWS = (30, 240)
 HOME_ROWS = (30, 76)                    # the first entry and its answer
 
-# Reverse of src/kernel/keymap.c: which physical key types each character.
+# Reverse of src/ui/keymap.c: which physical key types each character.
 ALPHA_KEYS = {
     "a": "math", "b": "apps", "c": "prgm",
     "d": "inv", "e": "sin", "f": "cos", "g": "tan", "h": "pow",
@@ -67,8 +67,8 @@ def ti_var(type_id: int, name: str, body: bytes, archived: bool) -> bytes:
 
 
 def load_font() -> dict[tuple[int, ...], str]:
-    """Glyph bitmaps from src/kernel/font8x8.c, keyed by their 8 row bytes."""
-    text = (ROOT / "src/kernel/font8x8.c").read_text()
+    """Glyph bitmaps from src/ui/font8x8.c, keyed by their 8 row bytes."""
+    text = (ROOT / "src/ui/font8x8.c").read_text()
     rows = re.findall(r"\{ ((?:0x[0-9A-Fa-f]{2}, ){7}0x[0-9A-Fa-f]{2}) \}", text)
     assert len(rows) == 95, len(rows)
     font = {}

@@ -1,6 +1,6 @@
 #include "notes.h"
 #include "archive.h"
-#include "console.h"
+#include "../ui/console.h"
 
 #include <string.h>
 

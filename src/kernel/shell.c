@@ -1,12 +1,12 @@
 #include "shell.h"
 #include "archive.h"
 #include "calc.h"
-#include "console.h"
 #include "events.h"
 #include "kernel.h"
 #include "../drivers/hw.h"
 #include "../drivers/keypad.h"
 #include "../drivers/timer.h"
+#include "../ui/console.h"
 
 #include <string.h>
 

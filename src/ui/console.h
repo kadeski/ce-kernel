@@ -1,5 +1,5 @@
-#ifndef KERNEL_CONSOLE_H
-#define KERNEL_CONSOLE_H
+#ifndef UI_CONSOLE_H
+#define UI_CONSOLE_H
 
 #include <stdint.h>
 

@@ -1,12 +1,10 @@
 #include "ui.h"
-#include "events.h"
-#include "kernel.h"
 #include "keymap.h"
-#include "notes.h"
 #include "../core/expr.h"
 #include "../core/imath.h"
 #include "../drivers/keypad.h"
 #include "../drivers/rtc.h"
+#include "../kernel/events.h"
 
 #include <stdarg.h>
 #include <string.h>
@@ -24,6 +22,8 @@
 
 static struct keymap_state keys = { .alpha = true };
 static char last_key;
+static const char *status_name = "";
+static enum run_end (*open_notes)(const char *file, const char *heading);
 
 /* ---- status bar and typing layer ---- */
 
@@ -54,11 +54,12 @@ static void update_status(void)
     }
     right[i] = '\0';
 
-    console_status(" " KERNEL_NAME " " KERNEL_VERSION, right);
+    console_status(status_name, right);
 }
 
-void ui_status_start(void)
+void ui_status_start(const char *name)
 {
+    status_name = name;
     update_status();
     event_every(1000, update_status);
 }
@@ -507,7 +508,7 @@ static void draw_form(const struct tool *t, uint8_t cur)
         draw_field(t, i, i == cur);
     draw_output(t);
     const char *const soft[SOFT_KEYS] = {
-        "Steps", t->notes_file ? "Notes" : NULL, NULL, NULL, "Back",
+        "Steps", t->notes_file && open_notes ? "Notes" : NULL, NULL, NULL, "Back",
     };
     draw_soft(soft);
 }
@@ -622,9 +623,9 @@ enum run_end ui_tool(const struct tool *t)
                 draw_form(t, cur);
                 break;
             case KC_F2:
-                if (!t->notes_file)
+                if (!t->notes_file || !open_notes)
                     break;
-                if (notes_open(t->notes_file, t->notes_heading) == RUN_HOME)
+                if (open_notes(t->notes_file, t->notes_heading) == RUN_HOME)
                     return RUN_HOME;
                 draw_form(t, cur);
                 break;
@@ -639,6 +640,11 @@ enum run_end ui_tool(const struct tool *t)
             cur = next;
         }
     }
+}
+
+void ui_set_notes(enum run_end (*open)(const char *file, const char *heading))
+{
+    open_notes = open;
 }
 
 enum run_end ui_section(const struct section *s)
