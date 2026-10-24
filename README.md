@@ -4,7 +4,13 @@ An open-source kernel for the TI-84 Plus CE family, including the Python Edition
 
 It boots into a menu of discrete math tools, with a notes viewer, an exact-fraction calculator and a shell, all on its own drivers for the screen, keypad and timers. Once it starts, no Texas Instruments code runs until you exit.
 
-![ce-kernel running in CEmu](docs/screenshot.png)
+<p align="center">
+  <img src="docs/img/menu.png" width="320" alt="The menu: five sections of discrete math tools, then Notes, Calculator and Shell">
+  <img src="docs/img/bayes.png" width="320" alt="The Bayes tool: P(X|F) = 1, P(F) = 0.01 and P(X|~F) = 0.015 give P(F|X) = 200/497, about 0.4024, with a line that checks it">
+  <br>
+  <img src="docs/img/steps.png" width="320" alt="The steps view of inverse mod N: the extended Euclid tableau for 47 mod 240">
+  <img src="docs/img/shell.png" width="320" alt="The shell: about names the bare ROM loader, mem prints the memory map">
+</p>
 
 ## Why a "takeover" kernel and not a replacement OS
 
@@ -18,6 +24,13 @@ So ce-kernel is built two ways from the same source:
 | Bare ROM | `bin/kernel.rom` | the CEmu emulator | the CPU's reset vector, with no TI code at all |
 
 Both run the identical kernel. See [docs/DESIGN.md](docs/DESIGN.md) for the details.
+
+## Highlights
+
+- **No TI code, checked at link time.** The bare ROM links only the toolchain's pure C library and runtime, and `rom/check_no_os_calls.py` fails the build if any `call`, `jp` or `rst` lands in TI's boot code. A passing ROM build is the proof that the kernel needs nothing from TI.
+- **Its own drivers.** The LCD controller (8bpp with a palette), keypad matrix, timer and real-time clock are driven through their registers, polled with interrupts off. Each driver saves the hardware state it changes and puts it back when the kernel exits to TI-OS.
+- **Exact answers without floating point.** The toolchain's float routines call the boot code, so the tools and calculator work in reduced fractions of 64-bit integers, with every operation checked: an overflow is an error message, never a wrong answer. The expression evaluator uses static stacks instead of recursion to fit the TI-OS build's 4 KB of stack.
+- **Tested by reading the screen.** `make smoke` boots the ROM in a headless CEmu, drives the menu, every tool and the shell with key presses, and reads each screenshot back as text by matching 8x8 cells against the kernel's own font. `make smoke-tios` does the same under real TI-OS, and checks that every way out returns to a working TI-OS.
 
 ## Build
 
@@ -41,7 +54,7 @@ Before you start, archive anything in RAM you care about. If the kernel ever han
 
 1. Check the OS version: press `2nd`, `+` (MEM), then `1` (About). **Don't update the OS**: new versions patch the jailbreak (5.8.3 broke arTIfiCE v1, and v2 stops at 5.8.4), and downgrades are blocked. Decline the updates TI Connect CE offers.
 2. Install the jailbreak. On OS 5.5 to 5.8.4, download `arTIfiCE_v2.1.8xp` from the [arTIfiCE releases](https://github.com/YvanTT/arTIfiCE/releases) (on 5.8.5 use v3 instead) and send it with TI Connect CE. To start it: `prgm`, choose TI-Basic if asked, pick the first program, `enter`.
-3. Dump your ROM. In CEmu's setup screen choose "Create a ROM image from your calculator", save the dumper program, send it to the calculator and run it from arTIfiCE. It needs 65,793 bytes of free RAM and does nothing without them, so check RAM FREE under `2nd` `+` `2` first. Copy the `ROMData` variables it creates back to the Mac and drop them into CEmu. The ROM and the `ROMData` files contain TI's code: keep them private and outside the repo (`.gitignore` only excludes `*.rom`).
+3. Dump your ROM. In CEmu's setup screen choose "Create a ROM image from your calculator", save the dumper program, send it to the calculator and run it from arTIfiCE. It needs 65,793 bytes of free RAM and does nothing without them, so check RAM FREE under `2nd` `+` `2` first. Copy the `ROMData` variables it creates back to your computer and drop them into CEmu. The ROM and the `ROMData` files contain TI's code: keep them private and outside the repo (`.gitignore` only excludes `*.rom`).
 4. Test in CEmu with that ROM:
    ```bash
    make smoke-tios TIOS_ROM=path/to/your.rom ARTIFICE=path/to/arTIfiCE_v2.1.8xp
@@ -109,7 +122,8 @@ The shell is the menu's last entry. It starts in alpha lock, so keys type the gr
 ```
 src/drivers/   lcd, keypad, timer, real-time clock drivers and the hardware register map
 src/kernel/    kmain, menu, ui (lists, forms, views), console, shell, calc, expressions,
-               fractions, notes viewer, events, keymap, font
+               fractions and checked 64-bit math, notes viewer, archive reader, events,
+               keymap, font
 src/discrete/  the study tools, one file per section
 src/tios/      TI-OS loader (KERNEL.8xp only)
 rom/           bare ROM loader: reset code, cold hardware init, linker script
