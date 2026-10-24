@@ -18,12 +18,25 @@ static const char number_layer[64] = {
     [KEY_DOT] = '.', [KEY_NEG] = '-', [KEY_COMMA] = ',',
     [KEY_ADD] = '+', [KEY_SUB] = '-', [KEY_MUL] = '*', [KEY_DIV] = '/', [KEY_POWER] = '^',
     [KEY_LPAREN] = '(', [KEY_RPAREN] = ')',
+    [KEY_XTON] = 'n',                   /* as in TI-OS's sequence mode */
+    [KEY_MATH] = KC_MATH,
 };
 
 static const char second_layer[64] = {
     [KEY_MUL] = '[', [KEY_SUB] = ']', [KEY_LPAREN] = '{', [KEY_RPAREN] = '}',
     [KEY_DOT] = '=', [KEY_0] = '_', [KEY_DIV] = '\\', [KEY_ADD] = '|',
 };
+
+int8_t keymap_digit(uint8_t key)
+{
+    static const uint8_t digit_keys[] = {
+        KEY_0, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9,
+    };
+    for (int8_t d = 0; d < 10; d++)
+        if (digit_keys[d] == key)
+            return d;
+    return -1;
+}
 
 char keymap_translate(struct keymap_state *state, uint8_t key)
 {
@@ -46,7 +59,13 @@ char keymap_translate(struct keymap_state *state, uint8_t key)
     case KEY_ENTER: return KC_ENTER;
     case KEY_DEL:   return KC_BACKSPACE;
     case KEY_CLEAR: return KC_CLEAR;
-    case KEY_UP:    return KC_HISTORY;
+    case KEY_UP:    return KC_UP;
+    case KEY_DOWN:  return KC_DOWN;
+    case KEY_YEQU:  return KC_F1;
+    case KEY_WINDOW: return KC_F2;
+    case KEY_ZOOM:  return KC_F3;
+    case KEY_TRACE: return KC_F4;
+    case KEY_GRAPH: return KC_F5;
     case KEY_MODE:  return second ? KC_QUIT : KC_NONE;
     }
 

@@ -25,6 +25,13 @@ void console_draw_cell(uint8_t col, uint8_t row, char c, uint8_t color, uint8_t 
     }
 }
 
+void console_fill(uint8_t col, uint8_t row, uint8_t cols, uint8_t bg)
+{
+    uint8_t *dst = LCD_FRAMEBUFFER + (uint24_t)row * ROW_BYTES + col * 8;
+    for (uint8_t y = 0; y < 8; y++, dst += LCD_WIDTH)
+        memset(dst, bg, (size_t)cols * 8);
+}
+
 static void scroll(void)
 {
     uint8_t *top = LCD_FRAMEBUFFER + FIRST_ROW * ROW_BYTES;
@@ -108,6 +115,12 @@ void console_backspace(void)
 uint8_t console_column(void)
 {
     return cur_col;
+}
+
+void console_goto(uint8_t col, uint8_t row)
+{
+    cur_col = col;
+    cur_row = row;
 }
 
 void console_status(const char *left, const char *right)

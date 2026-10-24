@@ -30,11 +30,15 @@ void console_newline(void);
 /* Erases the last character written on the current line. */
 void console_backspace(void);
 uint8_t console_column(void);
+/* Moves the cursor; row 0 is the status bar, so rows start at 1. */
+void console_goto(uint8_t col, uint8_t row);
 
 /* Draws text into the status bar; it is padded to the full width. */
 void console_status(const char *left, const char *right);
 
 /* Draws one character cell anywhere on screen (used by full-screen tools). */
 void console_draw_cell(uint8_t col, uint8_t row, char c, uint8_t fg, uint8_t bg);
+/* Fills cols cells from col on row with bg, much faster than blank cells. */
+void console_fill(uint8_t col, uint8_t row, uint8_t cols, uint8_t bg);
 
 #endif

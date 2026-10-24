@@ -1,6 +1,6 @@
 #include "kernel.h"
 #include "console.h"
-#include "shell.h"
+#include "menu.h"
 #include "../drivers/keypad.h"
 #include "../drivers/lcd.h"
 #include "../drivers/rtc.h"
@@ -31,12 +31,15 @@ int kmain(const struct boot_info *boot)
     lcd_init();
     console_init();
 
-    shell_run();
+    menu_run();
 
     /* With nothing to return to, leave the screen as it is for the loader to
      * halt on. */
-    if (!boot->can_exit)
+    if (!boot->can_exit) {
+        console_newline();
+        console_puts("halted; nothing to return to");
         return 0;
+    }
 
     /* Don't hand back control while ON or another key is still down, or
      * TI-OS would see it as a fresh key press. */

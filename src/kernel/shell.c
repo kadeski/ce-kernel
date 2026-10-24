@@ -4,10 +4,8 @@
 #include "console.h"
 #include "events.h"
 #include "kernel.h"
-#include "keymap.h"
 #include "../drivers/hw.h"
 #include "../drivers/keypad.h"
-#include "../drivers/rtc.h"
 #include "../drivers/timer.h"
 
 #include <string.h>
@@ -56,8 +54,7 @@ static const struct command commands[] = {
 
 static char line[SHELL_LINE_MAX + 1];
 static char last_line[SHELL_LINE_MAX + 1];
-static struct keymap_state keys = { .alpha = true };
-static bool running;
+static bool running, exiting;
 
 static void print_error(const char *msg)
 {
@@ -123,7 +120,7 @@ static void cmd_help(uint8_t argc, char **argv)
         console_newline();
     }
     console_set_color(COLOR_DIM);
-    console_puts("ALPHA: letters/digits  2nd+MODE: quit");
+    console_puts("ALPHA: letters/digits  2nd+MODE: menu");
     console_newline();
     console_set_color(COLOR_TEXT);
 }
@@ -365,6 +362,7 @@ static void cmd_exit(uint8_t argc, char **argv)
     (void)argc;
     (void)argv;
     running = false;
+    exiting = true;
 }
 
 static void execute(char *text)
@@ -407,111 +405,11 @@ static void prompt(void)
     line[0] = '\0';
 }
 
-/* Redraws the status bar. A timer event runs it every second for the clock,
- * and the shell loop when a key changes the typing layer. */
-static void update_status(void)
-{
-    static char right[12];              /* longest: "2nd a 23:59" */
-
-    /* "[2nd] a HH:MM" */
-    uint8_t i = 0;
-    if (keys.second) {
-        memcpy(&right[i], "2nd ", 4);
-        i += 4;
-    }
-    right[i++] = keys.alpha ? 'a' : '1';
-    right[i++] = ' ';
-    struct rtc_time now;
-    if (rtc_read(&now)) {
-        right[i++] = (char)('0' + now.hours / 10);
-        right[i++] = (char)('0' + now.hours % 10);
-        right[i++] = ':';
-        right[i++] = (char)('0' + now.minutes / 10);
-        right[i++] = (char)('0' + now.minutes % 10);
-    } else {
-        memcpy(&right[i], "--:--", 5);
-        i += 5;
-    }
-    right[i] = '\0';
-
-    console_status(" " KERNEL_NAME " " KERNEL_VERSION, right);
-}
-
-/* Replaces the len characters of buf, on screen too, with text. Returns the
- * new length. */
-static uint8_t replace_line(char *buf, uint8_t len, const char *text)
-{
-    while (len) {
-        console_backspace();
-        len--;
-    }
-    for (; *text && len < SHELL_LINE_MAX; text++) {
-        buf[len++] = *text;
-        console_putc(*text);
-    }
-    buf[len] = '\0';
-    return len;
-}
-
-enum line_end shell_edit_line(char *buf, char *history)
-{
-    uint8_t len = (uint8_t)strlen(buf);
-
-    for (;;) {
-        if (kernel_poll())
-            return LINE_ON;
-
-        struct keymap_state before = keys;
-        char c = keymap_translate(&keys, keypad_poll());
-        if (keys.alpha != before.alpha || keys.second != before.second)
-            update_status();
-        switch (c) {
-        case KC_NONE:
-            break;
-        case KC_QUIT:
-            return LINE_QUIT;
-        case KC_ENTER:
-            console_newline();
-            if (len)
-                memcpy(history, buf, len + 1);
-            return LINE_ENTER;
-        case KC_BACKSPACE:
-            if (len) {
-                buf[--len] = '\0';
-                console_backspace();
-            }
-            break;
-        case KC_CLEAR:
-            if (!len)
-                return LINE_CLEAR;
-            len = replace_line(buf, len, "");
-            break;
-        case KC_HISTORY:
-            len = replace_line(buf, len, history);
-            break;
-        default:
-            if (len < SHELL_LINE_MAX) {
-                buf[len++] = c;
-                buf[len] = '\0';
-                console_putc(c);
-            }
-            break;
-        }
-    }
-}
-
-void shell_set_alpha(bool alpha)
-{
-    keys.alpha = alpha;
-    keys.second = false;
-    update_status();
-}
-
-void shell_run(void)
+enum run_end shell_run(void)
 {
     running = true;
-    update_status();
-    event_every(1000, update_status);
+    exiting = false;
+    ui_set_alpha(true);
     console_set_color(COLOR_ACCENT);
     console_puts(KERNEL_NAME " " KERNEL_VERSION);
     console_newline();
@@ -522,27 +420,21 @@ void shell_run(void)
     prompt();
 
     while (running) {
-        switch (shell_edit_line(line, last_line)) {
+        switch (ui_edit_line(line, SHELL_LINE_MAX, last_line)) {
         case LINE_ENTER:
             execute(line);
             if (running)
                 prompt();
             break;
-        case LINE_ON:
-            /* Commands stop on ON themselves; here at the prompt it exits. */
-            if (kernel_boot->can_exit)
-                running = false;
-            break;
+        case LINE_ON:                   /* commands stop on ON themselves */
         case LINE_QUIT:
+            /* Back to the menu; only the exit command leaves the kernel. */
             running = false;
             break;
         case LINE_CLEAR:
+        case LINE_KEY:
             break;
         }
     }
-
-    if (!kernel_boot->can_exit) {
-        console_newline();
-        console_puts("halted; nothing to return to");
-    }
+    return exiting ? RUN_EXIT : RUN_BACK;
 }

@@ -14,6 +14,7 @@ So ce-kernel is a **takeover kernel**: TI-OS starts it as an assembly program, a
 
 ```
 src/kernel, src/drivers   shared; never call TI-OS or the boot code
+src/discrete              the study tools, also shared
 src/tios/main.c           TI-OS loader  -> bin/KERNEL.8xp
 rom/                      bare ROM loader -> bin/kernel.rom (CEmu only)
 ```
@@ -22,7 +23,7 @@ rom/                      bare ROM loader -> bin/kernel.rom (CEmu only)
 
 ### TI-OS loader (real calculator)
 
-Built with the toolchain's stock makefile and startup code (`crt0`). Before `main()`, crt0 turns off the run indicator and the USB timer and disables interrupts. After `main()` returns, it restores flash wait states, timer bits and TI-OS flags and redraws the home screen. Those calls are the handoff with TI-OS, not part of the kernel.
+Built with the toolchain's stock makefile and startup code (`crt0`). The program is about 84 KB, more than the 64 KB a TI-OS program variable can hold, so it is built compressed (`COMPRESSED = YES`): `KERNEL.8xp` stores about 44 KB, and the toolchain's extractor unpacks it into user memory before anything else runs. Unpacked, it needs that much free RAM. Before `main()`, crt0 turns off the run indicator and the USB timer and disables interrupts. After `main()` returns, it restores flash wait states, timer bits and TI-OS flags and redraws the home screen. Those calls are the handoff with TI-OS, not part of the kernel.
 
 The kernel saves and restores everything it changes: LCD control and base address, timer 1, and the ON-key latch setting. It only reads the real-time clock. It waits for all keys to be released before returning so TI-OS doesn't see a stray key press. RAM is not cleared on exit.
 
@@ -30,7 +31,7 @@ Memory while running:
 
 | Range | Use |
 |---|---|
-| `D1A87F`- | the program itself (TI-OS user memory) |
+| `D1A87F`- | the program itself, unpacked (TI-OS user memory) |
 | `D052C6`-`D13FD8` | `.bss` and free memory (TI-OS scratch area, the toolchain's default) |
 | TI-OS stack | about 4 KB, so buffers go in `.bss`, not on the stack |
 | `D40000`-`D52C00` | 8bpp framebuffer, 76,800 bytes |
@@ -41,7 +42,9 @@ A complete 4 MB flash image: reset vector at 0, a model header at `0x020000` (CE
 
 It is linked only against the toolchain's pure `libc.a` and `libcrt.a`, never the `_os` variants, and `rom/check_no_os_calls.py` fails the build if any code calls or jumps below `0x030000`. So a passing ROM build is also proof that the kernel needs no TI code.
 
-That check rules out the toolchain's `float`: its routines call the boot code (`0x0270`-`0x0290` in toolchain v15.0). 32- and 64-bit integer arithmetic is pure, so `calc` uses 32-bit integers and checks each step in 64 bits. A 64-bit `long double` from the toolchain's libsoftfloat also works once it is added to the ROM link, but its arithmetic alone about doubles the kernel's size.
+That check rules out the toolchain's `float`: its routines call the boot code (`0x0270`-`0x0290` in toolchain v15.0). 32- and 64-bit integer arithmetic is pure, so `calc` and the tools work in exact fractions of 64-bit integers, and show decimals by long division. A 64-bit `long double` from the toolchain's libsoftfloat also works once it is added to the ROM link, but its arithmetic alone about doubles the kernel's size.
+
+The bare ROM runs its code straight from flash and is slow in CEmu: the binomial tool with n = 20 takes 1.5 to 3 seconds there.
 
 This image can't run on a real calculator: the boot code rejects it, and Python models need an extra SPI sequence because the ARM coprocessor shares the bus.
 
@@ -54,13 +57,27 @@ There are no threads. The shell's loop, and the loop of any command that keeps r
 - Deadlines are kept in timer ticks and compared with a signed difference, so they stay right when the 32-bit counter wraps (about every 36 hours at 32,768 Hz). Milliseconds would not: `timer_ms()` drops back to 0 at that point instead of wrapping at 2^32.
 - A command that doesn't poll holds up the timer events until it returns. That is fine for commands that finish on their own, like `ls` or `peek`.
 
+## Menu and study tools
+
+`kmain` starts `menu_run()`, a numbered list of the tool sections, Notes, the calculator and the shell. Every screen is built from `src/kernel/ui.c`:
+
+- **Lists** (`ui_list`): a digit picks an entry in either typing layer, or UP, DOWN and ENTER. CLEAR goes back.
+- **Forms** (`ui_tool`): one field per line, typed with the shell's line editor. UP and DOWN move between fields, and ENTER reads them all and runs the tool, or first moves to a required field left empty. Number fields take expressions, so `1/6` or `0.8^6*0.2^4` work. The five keys under the screen are soft keys: Y= shows the steps, WINDOW the notes, GRAPH goes back.
+- **Views** (`ui_view`): a scrolling list of lines from a callback, so a tool's steps (a 200-line buffer in `.bss`) and a notes file read in place from flash use the same code.
+
+Each tool's `compute` function gets the parsed fields and prints with `ui_answer`, `ui_say`, `ui_check`, `ui_error` (the form) and `ui_step` (the steps). Their formatter is ui.c's own: the toolchain's `printf` might bring in float code. Answers are exact: `frac.h` keeps a reduced fraction of two `int64_t`, and every operation checks for overflow, so an answer too big to hold is an error instead of a wrong number. 64-bit math on the eZ80 is a runtime call per operation, with each value passed as three 24-bit words, which is why the tools take about half of the 84 KB.
+
+The toolchain's clang 19 miscompiled one function that returned an `int64_t` straight from another call: it swapped the top two thirds of the value (the 24-bit middle and 16-bit top). That helper now returns through a pointer. The smoke test's inverse and RSA checks caught it.
+
+**Notes.** TI-OS stores a Python file as an AppVar. Its data is the AppVar's 16-bit size, the magic `PYCD` or `PYSC`, metadata records (a 7-bit-per-byte length of 1 or 2 bytes, then that many bytes, the first being the record's type; type 1 is the file name), a `0` byte, and the script, maybe after a UTF-8 BOM and with CRLF line ends. That layout comes from tivars_lib_cpp's Python AppVar handler, not from TI, and hasn't been checked against a file from the calculator. The Notes entry lists archived Python files whose names end in `R`, notes made of `#` comment lines; the viewer drops each line's `# ` and shows lines starting `==` as headings. It indexes where the lines start and reads the text from flash, so a 241-line file costs 1.5 KB of RAM.
+
 ## Rules the kernel follows
 
 - **No TI-OS calls.** Nothing under `src/kernel` or `src/drivers` may include `ti/*` or `tice.h` headers.
 - **Polling, interrupts off.** On revision I and later hardware the CPU's vectored interrupt mode (IM 2) doesn't work (CEmu: `asic.im2 = revision < ASIC_REV_I`), so every interrupt goes through TI's handler at `0x38`. Owning interrupts would mean running TI code, so the kernel polls the keypad, timer and ON key instead.
 - **No SPI on real hardware.** On a calculator TI-OS has already set up the panel; switching to 8bpp is only an LCD controller register change. Panel SPI commands live in `rom/` only.
 - **Only read plain memory.** `peek` refuses I/O ranges because reading some registers clears status bits.
-- **Loops call `kernel_poll()`.** Anything that loops calls it on every pass and stops when it returns true. So ON stops a running command and returns to the prompt, the way Ctrl-C does, and a stuck command can be escaped without the reset button. At the prompt, ON exits to TI-OS (the bare ROM ignores it there).
+- **Loops call `kernel_poll()`.** Anything that loops calls it on every pass and stops when it returns true. So ON stops a running command and returns to the prompt, the way Ctrl-C does, and a stuck command can be escaped without the reset button. At the prompt or in a tool, ON goes back to the menu; at the menu it exits to TI-OS (the bare ROM ignores it there).
 
 ## Hardware notes
 
@@ -80,9 +97,9 @@ Register addresses are in `src/drivers/hw.h`, taken from the toolchain headers a
 
 ## Testing
 
-`make smoke` boots `bin/kernel.rom` in `cemu-headless`, types commands and takes screenshots. `tests/smoke.py` reads each screenshot back as text by matching 8x8 cells against the kernel's own font, then checks the output with regular expressions.
+`make smoke` boots `bin/kernel.rom` in `cemu-headless`, works through the menu, a tool form per tool with worked examples, the shell and `calc`, and takes screenshots. `tests/smoke.py` reads each screenshot back as text by matching 8x8 cells against the kernel's own font, then checks the output with regular expressions.
 
-`make smoke-tios` does the same for the TI-OS loader. It boots TI-OS from a ROM dumped from the user's own calculator, sends arTIfiCE, `KERNEL.8xp` and a small AppVar for the archive (twice, so the first copy is left behind as a deleted entry), runs a TI-Basic program that sets TI-OS's clock to 13:45, and starts the kernel from arTIfiCE's launcher. The kernel's status bar must then show 13:45. Both tests hold a key in `keys` for 61 seconds, so the clock's minute must change while a command runs. After the shell checks, it checks that each way out (`exit`, `2nd` `mode`, ON) returns to the launcher and that TI-OS still computes and starts programs afterwards. TI-OS screens can't be read with the kernel's font, so they are compared pixel for pixel with screenshots from earlier in the same run, below the status bar (its battery icon animates). The ROM contains TI's code and arTIfiCE isn't ours, so neither is in the repo: the test takes both as paths and isn't part of `make smoke`.
+`make smoke-tios` does the same for the TI-OS loader. It boots TI-OS from a ROM dumped from the user's own calculator, sends arTIfiCE, `KERNEL.8xp`, a small AppVar for the archive (twice, so the first copy is left behind as a deleted entry) and a Python notes file built in the tivars_lib_cpp layout, runs a TI-Basic program that sets TI-OS's clock to 13:45, and starts the kernel from arTIfiCE's launcher. The kernel's status bar must then show 13:45. Both tests hold a key in `keys` for 61 seconds, so the clock's minute must change while a command runs. It also opens the notes file from the Notes entry and from a tool's WINDOW key. After the shell checks, it checks that each way out (`2nd` `mode` and ON at the menu, `exit` in the shell) returns to the launcher and that TI-OS still computes and starts programs afterwards. TI-OS screens can't be read with the kernel's font, so they are compared pixel for pixel with screenshots from earlier in the same run, below the status bar (its battery icon animates). The ROM contains TI's code and arTIfiCE isn't ours, so neither is in the repo: the test takes both as paths and isn't part of `make smoke`.
 
 One thing it can't check is the wait for key release on exit: arTIfiCE's launcher ignores a key still held when the kernel returns, so the test passes without the wait.
 

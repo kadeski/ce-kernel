@@ -2,7 +2,7 @@
 #
 #   make          bin/KERNEL.8xp for a real calculator (runs from TI-OS via arTIfiCE)
 #   make rom      bin/kernel.rom, a bare 4 MB image that boots in CEmu with no TI code
-#   make smoke    boots the ROM in headless CEmu and checks the shell responds
+#   make smoke    boots the ROM in headless CEmu and checks the menu, tools and shell
 #   make smoke-tios TIOS_ROM=... ARTIFICE=...
 #                 runs KERNEL.8xp from arTIfiCE in headless CEmu, using a ROM
 #                 dumped from your own calculator, and checks each way back
@@ -11,7 +11,7 @@
 
 NAME = KERNEL
 DESCRIPTION = "ce-kernel takeover kernel"
-COMPRESSED = NO
+COMPRESSED = YES
 ARCHIVED = NO
 
 CFLAGS = -Wall -Wextra -Oz

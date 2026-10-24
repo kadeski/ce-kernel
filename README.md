@@ -2,7 +2,7 @@
 
 An open-source kernel for the TI-84 Plus CE family, including the Python Edition.
 
-It boots into its own text console and shell, with its own drivers for the screen, keypad and timers. Once it starts, no Texas Instruments code runs until you exit.
+It boots into a menu of discrete math tools, with a notes viewer, an exact-fraction calculator and a shell, all on its own drivers for the screen, keypad and timers. Once it starts, no Texas Instruments code runs until you exit.
 
 ![ce-kernel running in CEmu](docs/screenshot.png)
 
@@ -26,7 +26,7 @@ Needs the [CE C toolchain](https://github.com/CE-Programming/toolchain) (v15.0 t
 ```bash
 make          # bin/KERNEL.8xp
 make rom      # bin/kernel.rom
-make smoke    # boots the ROM in headless CEmu, types commands, checks the output
+make smoke    # boots the ROM in headless CEmu, uses the menu, tools and shell, checks the output
 ```
 
 `make smoke` needs `cemu-headless`; build it once with `tools/build-cemu-headless.sh`. `make smoke-tios` runs the same kind of test on `KERNEL.8xp` under TI-OS; it needs a ROM from your own calculator (see step 4 below).
@@ -46,23 +46,48 @@ Before you start, archive anything in RAM you care about. If the kernel ever han
    ```bash
    make smoke-tios TIOS_ROM=path/to/your.rom ARTIFICE=path/to/arTIfiCE_v2.1.8xp
    ```
-   This sends arTIfiCE and `bin/KERNEL.8xp` to a headless CEmu, plus a small AppVar to the archive for `ls` and `cat` to find (the dumped ROM's archive is empty) and a TI-Basic program `ZCLOCK` that sets the clock to 13:45 for the status bar to show. It starts the kernel from arTIfiCE, runs the shell checks, and then checks that `exit`, `2nd` `mode` and `on` each return to arTIfiCE's launcher, and that `mode` there quits to a home screen that still computes and runs programs. To try it by hand instead, open the ROM in CEmu, send both files and start the kernel from arTIfiCE.
-5. Send `bin/KERNEL.8xp` to the calculator and start it from arTIfiCE's launcher.
+   This sends arTIfiCE and `bin/KERNEL.8xp` to a headless CEmu, plus a small AppVar and a Python notes file to the archive (the dumped ROM's archive is empty) and a TI-Basic program `ZCLOCK` that sets the clock to 13:45 for the status bar to show. It starts the kernel from arTIfiCE, runs the tool, notes and shell checks, and then checks that `2nd` `mode` and `on` at the menu and `exit` in the shell each return to arTIfiCE's launcher, and that `mode` there quits to a home screen that still computes and runs programs. To try it by hand instead, open the ROM in CEmu, send both files and start the kernel from arTIfiCE.
+5. Send `bin/KERNEL.8xp` to the calculator and start it from arTIfiCE's launcher. It is stored compressed (about 44 KB) and unpacks to about 84 KB of RAM when it starts, on top of the room the program itself takes, so archive what you can first. The first run on the calculator is the real test of how much it needs.
+6. For the Notes entry, send your `*R.py` notes files (such as `NUMR.py`) to the archive.
 
 Exam (Press-to-Test) mode deletes arTIfiCE; send it again afterwards.
 
-## Using the shell
+## Using the kernel
 
-The shell starts in alpha lock, so keys type the green letters printed above them. `alpha` toggles between letters and digits; `2nd` applies to the next key only. The top-right corner shows `a` (letters) or `1` (digits), then the time from the calculator's clock in 24-hour format.
+The kernel starts on a menu: press a digit, or move with the arrows and press `enter`. The top-right corner shows `1` (digits) or `a` (letters), then the time from the calculator's clock in 24-hour format.
 
 | Key | Does |
 |---|---|
-| `enter` | run the line |
-| `del` | delete the last character |
-| `clear` | clear the line |
-| up arrow | recall the last command |
-| `2nd` `mode` | exit back to TI-OS (in `calc`, back to the shell) |
-| `on` | stop the running command; at the prompt, exit back to TI-OS |
+| `clear` | go back one screen (in a field with text, clear it first) |
+| `2nd` `mode` | back to the menu; at the menu, exit to TI-OS |
+| `on` | stop what is running and go back to the menu; at the menu, exit to TI-OS (the bare ROM ignores it there) |
+| `alpha` | switch between letters and digits; `2nd` applies to the next key only |
+
+### Study tools
+
+The first five entries are sections of tools. A tool is a form: type a value in each field, move between fields with the up and down arrows, and press `enter` for the answer and a line that checks it or names the formula. Number fields take expressions, so `1/6`, `0.015` or `0.8^6*0.2^4` all work, and answers are exact fractions with a decimal (`200/497 ~ 0.4024`; `=` instead of `~` when the decimal is exact). The keys under the screen are labelled at the bottom: `y=` shows each step of the work, `window` opens the notes at the tool's heading, `graph` goes back.
+
+| Section | Tools |
+|---|---|
+| Number theory | div and mod (rounding down), gcd and lcm with the remainders, inverse mod N with the extended Euclid tableau, power mod N, primes and factors, bases, RSA, ciphers and A=1 codes, LCG |
+| Counting | nCr, nPr and n!, multisets with lower and upper bounds, multinomial, functions A to B (all, one-to-one, onto), pigeonhole, inclusion-exclusion for 2 or 3 sets, lex order (compare, next permutation), the counting decision tree |
+| Recurrences and sums | iterate a recurrence in `a` = f(n-1), `b` = f(n-2) and `n` (the `x,t,θ,n` key types `n`), characteristic equation with the closed form, sums |
+| Probability | Bayes, and/or/given, binomial, at least once (or how many tries to reach a target), expected value |
+| Algorithms | bits and binary search, sort step counts, master theorem |
+
+List fields take values separated by commas, such as `1,4,4,2`.
+
+### Notes
+
+Notes lists the archived Python files whose names end in `R`, such as `NUMR`, and shows one with its `# ` marks removed and headings highlighted. The up and down arrows scroll, left and right page.
+
+### Calculator
+
+The calculator evaluates one expression per line, such as `12*34` or `1-(9/10)^2`, using `+ - * / ^ ( )`, unary minus and decimals. It works in exact fractions, so `7/2` shows `7/2 = 3.5`, and `^` goes first and groups right to left (`2^3^2` is 512, `-2^2` is -4). `math` lists its functions and types the one you pick by its digit: `ncr(n,k)`, `npr(n,k)`, `fact(n)`, `gcd(a,b)`, `lcm(a,b)`, `div(x,n)`, `mod(x,n)` (never negative), `inv(x,n)` and `powmod(x,y,n)`. Numbers go up to 2^63-1, and anything bigger is an error rather than a wrong answer. `del`, `clear` and the up arrow edit the line as in the shell; `clear` on an empty line, `2nd` `mode` or `on` leave.
+
+### Shell
+
+The shell is the menu's last entry. It starts in alpha lock, so keys type the green letters printed above them. `enter` runs the line, `del` deletes the last character, `clear` clears the line and the up arrow recalls the last command. `on` stops the running command; at the prompt, `on` and `2nd` `mode` go back to the menu.
 
 | Command | Does |
 |---|---|
@@ -74,22 +99,18 @@ The shell starts in alpha lock, so keys type the green letters printed above the
 | `peek ADDR [LEN]` | hex dump of flash or RAM (hex numbers) |
 | `ls` | list the variables in TI-OS's archive: type, name, size, where the data starts |
 | `cat NAME` | hex dump of an archived variable's data (the first 128 bytes) |
-| `calc` | integer calculator, one expression per line (see below) |
+| `calc` | the calculator above |
 | `echo TEXT` | print text |
 | `clear` | clear the screen |
 | `exit` | return to TI-OS (the bare ROM halts instead) |
-
-### Calculator
-
-`calc` evaluates expressions such as `12*34` or `(2+3)^2`, one per line, using `+ - * / ^ ( )` and unary minus. It switches to digit mode, so no `alpha` is needed, and `del`, `clear` and the up arrow edit the line as at the shell prompt. `clear` on an empty line, `2nd` `mode` or `on` go back to the shell.
-
-Numbers are whole and 32-bit, from -2147483648 to 2147483647, and a result outside that range is an error. `/` drops the remainder (`7/2` is 3), and `^` goes first and groups right to left, so `2^3^2` is 512 and `-2^2` is -4.
 
 ## Layout
 
 ```
 src/drivers/   lcd, keypad, timer, real-time clock drivers and the hardware register map
-src/kernel/    kmain, console, shell, calc, events, keymap, font
+src/kernel/    kmain, menu, ui (lists, forms, views), console, shell, calc, expressions,
+               fractions, notes viewer, events, keymap, font
+src/discrete/  the study tools, one file per section
 src/tios/      TI-OS loader (KERNEL.8xp only)
 rom/           bare ROM loader: reset code, cold hardware init, linker script
 tests/         headless smoke test
