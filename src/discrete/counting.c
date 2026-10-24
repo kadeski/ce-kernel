@@ -1,7 +1,7 @@
 #include "discrete.h"
+#include "../core/imath.h"
 #include "../kernel/calc.h"
 #include "../kernel/console.h"
-#include "../kernel/imath.h"
 
 #include <string.h>
 

@@ -1,5 +1,5 @@
-#ifndef KERNEL_IMATH_H
-#define KERNEL_IMATH_H
+#ifndef CORE_IMATH_H
+#define CORE_IMATH_H
 
 #include <stdbool.h>
 #include <stdint.h>

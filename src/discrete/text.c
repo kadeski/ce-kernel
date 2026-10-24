@@ -1,5 +1,5 @@
 #include "discrete.h"
-#include "../kernel/imath.h"
+#include "../core/imath.h"
 
 #include <string.h>
 

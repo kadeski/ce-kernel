@@ -14,6 +14,9 @@ DESCRIPTION = "ce-kernel takeover kernel"
 COMPRESSED = YES
 ARCHIVED = NO
 
+# Objects for each build go under build/, the programs in bin/.
+OBJDIR = build/tios
+
 CFLAGS = -Wall -Wextra -Oz
 CXXFLAGS = -Wall -Wextra -Oz
 

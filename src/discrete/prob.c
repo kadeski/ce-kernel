@@ -1,6 +1,6 @@
 #include "discrete.h"
+#include "../core/imath.h"
 #include "../kernel/events.h"
-#include "../kernel/imath.h"
 
 #define NOTES "PROBR"
 

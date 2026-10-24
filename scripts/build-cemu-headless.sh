@@ -2,7 +2,7 @@
 # Builds cemu-headless (CEmu's emulator core with a stdin command interface,
 # used by tests/smoke.py) and installs it next to the toolchain's binaries.
 #
-# usage: tools/build-cemu-headless.sh [install-dir]   (default: $CEDEV/bin or ~/CEdev/bin)
+# usage: scripts/build-cemu-headless.sh [install-dir]   (default: $CEDEV/bin or ~/CEdev/bin)
 set -eu
 
 # Commit the smoke test was written against. Newer ones should also work.

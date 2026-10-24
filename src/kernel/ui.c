@@ -1,10 +1,10 @@
 #include "ui.h"
 #include "events.h"
-#include "expr.h"
-#include "imath.h"
 #include "kernel.h"
 #include "keymap.h"
 #include "notes.h"
+#include "../core/expr.h"
+#include "../core/imath.h"
 #include "../drivers/keypad.h"
 #include "../drivers/rtc.h"
 

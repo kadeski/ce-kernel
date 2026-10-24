@@ -25,7 +25,7 @@ So ce-kernel is built two ways from the same source:
 | TI-OS loader | `bin/KERNEL.8xp` | your real calculator | TI-OS, as an assembly program (needs the arTIfiCE jailbreak on OS 5.5+) |
 | Bare ROM | `bin/kernel.rom` | the CEmu emulator | the CPU's reset vector, with no TI code at all |
 
-Both run the identical kernel. See [docs/DESIGN.md](docs/DESIGN.md) for the details.
+Both run the identical kernel. See [docs/DESIGN.md](docs/DESIGN.md) for the details and [ADR 0002](docs/adr/0002-takeover-kernel.md) for the reasoning.
 
 ## Highlights
 
@@ -34,17 +34,14 @@ Both run the identical kernel. See [docs/DESIGN.md](docs/DESIGN.md) for the deta
 - **Exact answers without floating point.** The toolchain's float routines call the boot code, so the tools and calculator work in reduced fractions of 64-bit integers, with every operation checked: an overflow is an error message, never a wrong answer. The expression evaluator uses static stacks instead of recursion to fit the TI-OS build's 4 KB of stack.
 - **Tested by reading the screen.** `make smoke` boots the ROM in a headless CEmu, drives the menu, every tool and the shell with key presses, and reads each screenshot back as text by matching 8x8 cells against the kernel's own font. `make smoke-tios` does the same under real TI-OS, and checks that every way out returns to a working TI-OS.
 
-## Build
+## Setup
 
-Needs the [CE C toolchain](https://github.com/CE-Programming/toolchain) (v15.0 tested) with its `bin/` on your `PATH`, and Python 3.
+Needs the [CE C toolchain](https://github.com/CE-Programming/toolchain) (v15.0 tested) with its `bin/` on your `PATH`, and Python 3, which the ROM build's check and the tests use.
 
 ```bash
-make          # bin/KERNEL.8xp
-make rom      # bin/kernel.rom
-make smoke    # boots the ROM in headless CEmu, uses the menu, tools and shell, checks the output
+make          # bin/KERNEL.8xp, for the calculator
+make rom      # bin/kernel.rom, for CEmu
 ```
-
-`make smoke` needs `cemu-headless`; build it once with `tools/build-cemu-headless.sh`. `make smoke-tios` runs the same kind of test on `KERNEL.8xp` under TI-OS; it needs a ROM from your own calculator (see step 4 below).
 
 To try it by hand, open `bin/kernel.rom` in [CEmu](https://github.com/CE-Programming/CEmu) (File, Open ROM image).
 
@@ -67,7 +64,7 @@ Before you start, archive anything in RAM you care about. If the kernel ever han
 
 Exam (Press-to-Test) mode deletes arTIfiCE; send it again afterwards.
 
-## Using the kernel
+## Usage
 
 The kernel starts on a menu: press a digit, or move with the arrows and press `enter`. The top-right corner shows `1` (digits) or `a` (letters), then the time from the calculator's clock in 24-hour format.
 
@@ -119,19 +116,19 @@ The shell is the menu's last entry. It starts in alpha lock, so keys type the gr
 | `clear` | clear the screen |
 | `exit` | return to TI-OS (the bare ROM halts instead) |
 
-## Layout
+## Development
 
+The tests need `cemu-headless`, CEmu's emulator core with a command interface. Build it once with `scripts/build-cemu-headless.sh`.
+
+```bash
+make smoke    # boots the ROM in headless CEmu, uses the menu, tools and shell, checks the output
+make smoke-tios TIOS_ROM=path/to/your.rom ARTIFICE=path/to/arTIfiCE_v2.1.8xp
+make clean    # removes build/ and bin/
 ```
-src/drivers/   lcd, keypad, timer, real-time clock drivers and the hardware register map
-src/kernel/    kmain, menu, ui (lists, forms, views), console, shell, calc, expressions,
-               fractions and checked 64-bit math, notes viewer, archive reader, events,
-               keymap, font
-src/discrete/  the study tools, one file per section
-src/tios/      TI-OS loader (KERNEL.8xp only)
-rom/           bare ROM loader: reset code, cold hardware init, linker script
-tests/         headless smoke test
-tools/         helper scripts
-```
+
+`make smoke-tios` runs the same kind of test on `KERNEL.8xp` under TI-OS. It needs a ROM from your own calculator (step 3 of the install), so CI runs only `make smoke`, after building both loaders.
+
+The source is in layers: `src/core/` (pure math), `src/drivers/` (the hardware), `src/kernel/` (the menu, its screens, the shell and the event loop) and `src/discrete/` (the study tools, one section per file), started by one of two loaders, `src/tios/` or `rom/`. See [docs/DESIGN.md](docs/DESIGN.md) for how it works, [docs/adr/](docs/adr/) for why, and [docs/plans/](docs/plans/) for work in progress.
 
 ## License
 

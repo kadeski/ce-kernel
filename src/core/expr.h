@@ -1,5 +1,5 @@
-#ifndef KERNEL_EXPR_H
-#define KERNEL_EXPR_H
+#ifndef CORE_EXPR_H
+#define CORE_EXPR_H
 
 #include "frac.h"
 

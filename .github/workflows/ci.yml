@@ -25,11 +25,11 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/cemu
-          key: cemu-headless-${{ runner.os }}-${{ hashFiles('tools/build-cemu-headless.sh') }}
+          key: cemu-headless-${{ runner.os }}-${{ hashFiles('scripts/build-cemu-headless.sh') }}
 
       - name: Build cemu-headless
         if: steps.cemu.outputs.cache-hit != 'true'
-        run: tools/build-cemu-headless.sh "$HOME/cemu"
+        run: scripts/build-cemu-headless.sh "$HOME/cemu"
 
       - run: echo "$HOME/cemu" >> "$GITHUB_PATH"
 

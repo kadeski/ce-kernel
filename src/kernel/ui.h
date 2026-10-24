@@ -2,7 +2,7 @@
 #define KERNEL_UI_H
 
 #include "console.h"
-#include "frac.h"
+#include "../core/frac.h"
 
 #include <stdbool.h>
 #include <stddef.h>

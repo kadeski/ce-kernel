@@ -1,5 +1,5 @@
-#ifndef KERNEL_FRAC_H
-#define KERNEL_FRAC_H
+#ifndef CORE_FRAC_H
+#define CORE_FRAC_H
 
 #include <stdbool.h>
 #include <stdint.h>

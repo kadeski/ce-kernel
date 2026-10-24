@@ -1,6 +1,6 @@
 #include "discrete.h"
-#include "../kernel/expr.h"
-#include "../kernel/imath.h"
+#include "../core/expr.h"
+#include "../core/imath.h"
 
 #include <string.h>
 

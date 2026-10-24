@@ -1,10 +1,10 @@
 #include "calc.h"
 #include "console.h"
 #include "events.h"
-#include "expr.h"
 #include "keymap.h"
 #include "shell.h"
 #include "ui.h"
+#include "../core/expr.h"
 #include "../drivers/keypad.h"
 
 #include <string.h>

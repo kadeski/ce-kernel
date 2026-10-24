@@ -1,6 +1,18 @@
+# Build output: objects in build/, programs in bin/
 /bin/
-/obj/
 /build/
+
 # ROM dumps from a real calculator contain TI's copyrighted code: never commit them.
 *.rom
 *.ce
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Claude Code worktrees and scratch
+.claude/worktrees/
+.claude/.cc-writes/
+
+# OS
+.DS_Store
