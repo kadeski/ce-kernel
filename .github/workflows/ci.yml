@@ -1,0 +1,50 @@
+# Builds both loaders and runs the bare ROM smoke test. make smoke-tios needs
+# a ROM dumped from a calculator, which can't be in the repo, so it runs locally.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install the CE C toolchain
+        run: |
+          curl -sSfL https://github.com/CE-Programming/toolchain/releases/download/v15.0/CEdev-Linux.tar.gz | tar xz -C "$HOME"
+          echo "$HOME/CEdev/bin" >> "$GITHUB_PATH"
+
+      # The script pins a CEmu commit, so its hash is the cache key.
+      - name: Cache cemu-headless
+        id: cemu
+        uses: actions/cache@v6
+        with:
+          path: ~/cemu
+          key: cemu-headless-${{ runner.os }}-${{ hashFiles('tools/build-cemu-headless.sh') }}
+
+      - name: Build cemu-headless
+        if: steps.cemu.outputs.cache-hit != 'true'
+        run: tools/build-cemu-headless.sh "$HOME/cemu"
+
+      - run: echo "$HOME/cemu" >> "$GITHUB_PATH"
+
+      - name: Build KERNEL.8xp
+        run: make
+
+      - name: Build kernel.rom and check it calls no TI code
+        run: make rom
+
+      - name: Smoke test
+        run: make smoke
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ce-kernel
+          path: |
+            bin/KERNEL.8xp
+            bin/kernel.rom
