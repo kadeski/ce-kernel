@@ -1,5 +1,5 @@
-#ifndef KERNEL_FONT8X8_H
-#define KERNEL_FONT8X8_H
+#ifndef UI_FONT8X8_H
+#define UI_FONT8X8_H
 
 #include <stdint.h>
 

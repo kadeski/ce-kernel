@@ -128,8 +128,8 @@ make clean    # removes build/ and bin/
 
 `make smoke-tios` runs the same kind of test on `KERNEL.8xp` under TI-OS. It needs a ROM from your own calculator (step 3 of the install), so CI runs only `make smoke`, after building both loaders.
 
-The source is in layers: `src/core/` (pure math), `src/drivers/` (the hardware), `src/kernel/` (the menu, its screens, the shell and the event loop) and `src/discrete/` (the study tools, one section per file), started by one of two loaders, `src/tios/` or `rom/`. See [docs/DESIGN.md](docs/DESIGN.md) for how it works, [docs/adr/](docs/adr/) for why, and [docs/plans/](docs/plans/) for work in progress.
+The source is in layers: `src/core/` (pure math), `src/drivers/` (the hardware), `src/ui/` (the console, font, keymap and the screens' shared parts), `src/kernel/` (the menu, its screens, the shell and the event loop) and `src/discrete/` (the study tools, one section per file), started by one of two loaders, `src/tios/` or `rom/`. See [docs/DESIGN.md](docs/DESIGN.md) for how it works, [docs/adr/](docs/adr/) for why, and [docs/plans/](docs/plans/) for work in progress.
 
 ## License
 
-MIT, see [LICENSE](LICENSE). The font in `src/kernel/font8x8.c` is public domain (from [dhepper/font8x8](https://github.com/dhepper/font8x8)). Builds link the CE toolchain's C library and runtime, which are LGPL-3.0.
+MIT, see [LICENSE](LICENSE). The font in `src/ui/font8x8.c` is public domain (from [dhepper/font8x8](https://github.com/dhepper/font8x8)). Builds link the CE toolchain's C library and runtime, which are LGPL-3.0.

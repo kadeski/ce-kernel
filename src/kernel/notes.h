@@ -1,7 +1,7 @@
 #ifndef KERNEL_NOTES_H
 #define KERNEL_NOTES_H
 
-#include "ui.h"
+#include "../ui/ui.h"
 
 /* The Notes entry: lists the archived Python files whose names end in R,
  * such as NUMR, and shows the one picked. */

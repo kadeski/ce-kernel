@@ -1,11 +1,11 @@
 #include "menu.h"
 #include "calc.h"
-#include "console.h"
 #include "kernel.h"
 #include "notes.h"
 #include "shell.h"
-#include "ui.h"
 #include "../discrete/discrete.h"
+#include "../ui/console.h"
+#include "../ui/ui.h"
 
 #include <stddef.h>
 
@@ -46,7 +46,8 @@ void menu_run(void)
                                              : "1-8 or ENTER.";
     uint8_t pick = 0;
 
-    ui_status_start();
+    ui_status_start(" " KERNEL_NAME " " KERNEL_VERSION);
+    ui_set_notes(notes_open);
     for (;;) {
         switch (ui_list("Discrete math", home, sizeof *home, ENTRIES, hint, &pick)) {
         case UI_PICK:

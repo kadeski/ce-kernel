@@ -1,7 +1,7 @@
 #ifndef DISCRETE_DISCRETE_H
 #define DISCRETE_DISCRETE_H
 
-#include "../kernel/ui.h"
+#include "../ui/ui.h"
 
 /* The discrete math tools, one section per file, each a list of forms. */
 extern const struct section nt_section;         /* numtheory.c */

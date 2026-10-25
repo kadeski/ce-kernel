@@ -1,5 +1,5 @@
-#ifndef KERNEL_UI_H
-#define KERNEL_UI_H
+#ifndef UI_UI_H
+#define UI_UI_H
 
 #include "console.h"
 #include "../core/frac.h"
@@ -21,8 +21,9 @@ enum run_end {
     RUN_EXIT,                           /* the shell's exit: leave the kernel */
 };
 
-/* Draws the status bar and keeps its clock current, once a second. */
-void ui_status_start(void);
+/* Draws the status bar, name on the left, and keeps its clock current, once
+ * a second. */
+void ui_status_start(const char *name);
 /* Sets the typing layer to letters (alpha lock) or digits. */
 void ui_set_alpha(bool alpha);
 
@@ -115,6 +116,9 @@ struct section {
     uint8_t ntools;
 };
 
+/* Sets what the WINDOW key in a form calls to show a tool's notes: file is
+ * its notes_file, heading its notes_heading. Until then WINDOW does nothing. */
+void ui_set_notes(enum run_end (*open)(const char *file, const char *heading));
 /* Lists a section's tools until CLEAR, ON or 2nd + MODE. */
 enum run_end ui_section(const struct section *s);
 /* Runs one tool's form: UP and DOWN move between fields, ENTER shows the

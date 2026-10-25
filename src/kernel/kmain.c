@@ -1,10 +1,10 @@
 #include "kernel.h"
-#include "console.h"
 #include "menu.h"
 #include "../drivers/keypad.h"
 #include "../drivers/lcd.h"
 #include "../drivers/rtc.h"
 #include "../drivers/timer.h"
+#include "../ui/console.h"
 
 const struct boot_info *kernel_boot;
 
