@@ -108,10 +108,121 @@ static bool tool_master(const struct value *v)
     return true;
 }
 
+/* ---- state machines ---- */
+
+/* States are the digits 0-9 (A = 0, B = 1, ...). A set of them is a bit mask,
+ * so one table serves a DFA and an NFA. */
+static const struct field fsm_fields[] = {
+    { "on 0", F_DIGITS },               /* per state: next states, "-" for none */
+    { "on 1", F_DIGITS },
+    { "start", F_INT | F_OPT },
+    { "accept", F_DIGITS | F_OPT },     /* "2" or "05" */
+    { "input", F_DIGITS },              /* "1101" or "1111,1101,..." */
+};
+
+#define FSM_STATES 10
+
+/* Reads "1,2,-,03" into next[], one set per state; returns the count, or 0
+ * after ui_error(). */
+static uint8_t fsm_table(const char *s, const char *name, uint16_t *next)
+{
+    uint8_t n = 0;
+    for (;;) {
+        if (n == FSM_STATES)
+            return ui_error("%s: at most %d states", name, FSM_STATES);
+        next[n] = 0;
+        for (; *s && *s != ','; s++) {
+            if (*s >= '0' && *s <= '9')
+                next[n] |= 1u << (*s - '0');
+            else if (*s != '-')
+                return ui_error("%s: digits, - and commas", name);
+        }
+        n++;
+        if (!*s++)
+            return n;
+    }
+}
+
+static const char *fsm_set(uint16_t set)
+{
+    char one[5] = "0(A)";
+    uint8_t count = 0;
+    text_clear();
+    for (uint8_t q = 0; q < FSM_STATES; q++) {
+        if (!(set & (1u << q)))
+            continue;
+        if (count++)
+            text_add(",");
+        one[0] = (char)('0' + q);
+        one[2] = (char)('A' + q);
+        text_add(one);
+    }
+    if (!count)
+        text_add("none: stuck");
+    return text();
+}
+
+static bool tool_fsm(const struct value *v)
+{
+    static uint16_t on[2][FSM_STATES];
+    uint8_t n = fsm_table(v[0].text, "on 0", on[0]);
+    if (!n)
+        return false;
+    uint8_t n1 = fsm_table(v[1].text, "on 1", on[1]);
+    if (!n1)
+        return false;
+    if (n1 != n)
+        return ui_error("on 0 and on 1 need one entry per state");
+    int64_t start = v[2].given ? v[2].i : 0;
+    if (start < 0 || start >= n)
+        return ui_error("start must be 0 to %d", n - 1);
+    uint16_t accept = 0;
+    for (const char *s = v[3].given ? v[3].text : ""; *s; s++)
+        if (*s >= '0' && *s <= '9')
+            accept |= 1u << (*s - '0');
+
+    bool nfa = false;
+    for (uint8_t q = 0; q < n; q++)
+        for (uint8_t c = 0; c < 2; c++)
+            if (on[c][q] & (on[c][q] - 1))
+                nfa = true;
+
+    static char word[FIELD_MAX + 1];
+    for (const char *s = v[4].text; *s; ) {
+        uint8_t len = 0;
+        uint16_t set = 1u << start;
+        ui_step_head("from %s", fsm_set(set));
+        for (; *s && *s != ','; s++) {
+            if (*s != '0' && *s != '1')
+                return ui_error("input: 0s and 1s, commas between");
+            word[len++] = *s;
+            uint16_t to = 0;
+            for (uint8_t q = 0; q < n; q++)
+                if (set & (1u << q))
+                    to |= on[*s - '0'][q];
+            set = to;
+            ui_step("%c -> %s", *s, fsm_set(set));
+        }
+        word[len] = '\0';
+        bool ok = (set & accept) != 0;
+        fsm_set(set);
+        if (accept)
+            ui_answer("%s: %s, %s", word, text(), ok ? "accept" : "reject");
+        else
+            ui_answer("%s: ends in %s", word, text());
+        if (*s)
+            s++;
+    }
+    ui_check(nfa ? "NFA: accept if any end state accepts"
+                 : "DFA: one state at a time");
+    return true;
+}
+
 static const struct tool tools[] = {
     { "bits and binary search", FIELDS(bits_fields), tool_bits, NOTES, "SEARCH", NULL },
     { "sort step counts", FIELDS(sorts_fields), tool_sorts, NOTES, "SORTS", NULL },
     { "master theorem", FIELDS(master_fields), tool_master, NOTES, "RECURRENCES", NULL },
+    { "state machines", FIELDS(fsm_fields), tool_fsm, "FSMR", "TRACING", NULL },
 };
 
 const struct section algo_section = { "Algorithms", TOOLS(tools) };

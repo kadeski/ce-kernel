@@ -81,11 +81,11 @@ The first five entries are sections of tools. A tool is a form: type a value in 
 
 | Section | Tools |
 |---|---|
-| Number theory | div and mod (rounding down), gcd and lcm with the remainders, inverse mod N with the extended Euclid tableau, power mod N, primes and factors, bases, RSA, ciphers and A=1 codes, LCG |
-| Counting | nCr, nPr and n!, multisets with lower and upper bounds, multinomial, functions A to B (all, one-to-one, onto), pigeonhole, inclusion-exclusion for 2 or 3 sets, lex order (compare, next permutation), the counting decision tree |
-| Recurrences and sums | iterate a recurrence in `a` = f(n-1), `b` = f(n-2) and `n` (the `x,t,θ,n` key types `n`), characteristic equation with the closed form, sums |
+| Number theory | div and mod (rounding down; type `n` for a missing digit, as in `1233n2`, to list the digits that make N divide it), gcd and lcm with the remainders, inverse mod N with the extended Euclid tableau, power mod N, primes and factors, bases, RSA, ciphers and A=1 codes, LCG |
+| Counting | nCr, nPr and n!, multisets with lower and upper bounds, multinomial, functions A to B (all, one-to-one, onto), pigeonhole, inclusion-exclusion for 2 or 3 sets, lex order (compare, next permutation), the counting decision tree, in a row (k together, or no two of k next to each other) |
+| Recurrences and sums | iterate a recurrence in `a` = f(n-1), `b` = f(n-2) and `n` (the `x,t,θ,n` key types `n`), with an optional closed-form guess to check, characteristic equation with the closed form, sums, the sum of f(n) over any range with an optional S(n) to check (it says whether S(n) is the sum to n or to n+1, the right side of P(n+1)) |
 | Probability | Bayes, and/or/given, binomial, at least once (or how many tries to reach a target), expected value |
-| Algorithms | bits and binary search, sort step counts, master theorem |
+| Algorithms | bits and binary search, sort step counts, master theorem, state machines (DFA or NFA: each state's next states on 0 and on 1, such as `-,0,0` or `13,2`; states are 0-9 for A-J; several inputs at once, separated by commas) |
 
 List fields take values separated by commas, such as `1,4,4,2`.
 

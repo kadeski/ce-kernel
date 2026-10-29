@@ -271,6 +271,7 @@ def main() -> int:
 
     # Each tool's answer, on worked examples.
     expect("div and mod rounds down", s.tool("1", "1", ["-457", "22"]), r"^ q = -21    r = 5$")
+    expect("missing digit", s.tool("1", "1", ["1233n2", "8"], wait=3000), r"^ 3 digits work: 1 5 9$")
     gcd, steps = s.tool("1", "2", ["178", "20"], then=["keys yequ", "run 500"])
     expect("gcd remainders", gcd, r"^ remainders: 18 2 0$")
     expect("gcd and lcm", gcd, r"^ gcd = 2    lcm = 1780$")
@@ -296,6 +297,8 @@ def main() -> int:
     expect("pigeonhole", s.tool("2", "5", ["26", "", "2"]), r"^ 27 items force 2 in a box$")
     expect("inclusion-exclusion", s.tool("2", "6", ["8", "10", "6"]),
            r"^ \|AuB\| = 8 \+ 10 - 6 = 12$")
+    expect("no two children together", s.tool("2", "9", ["2", "3"]),
+           r"^ none next to each other: 12$")
     lex = s.tool("2", "7", ["4,5,2,3,1,6", "4,5,2,3,6,1"])
     expect("lex order", lex, r"^ a < b at place 5: 1 < 6$")
     expect("next permutation", lex, r"^ next: \(4,5,2,3,6,1\)$")
@@ -314,6 +317,13 @@ def main() -> int:
     sums = s.tool("3", "3", ["10"])
     expect("sum of k", sums, r"^ 1\+2\+\.\.\.\+n = 55$")
     expect("sum of k^3", sums, r"^ 1\^3\+\.\.\.\+n\^3 = 3025$")
+    expect("closed form guess", s.tool("3", "1", ["3a-2b", "0", "1", "2", "8", "2^n"], wait=3000),
+           r"^ guess matches f\(0\) to f\(8\)$")
+    expect("sum over a range", s.tool("3", "4", ["2n-3", "-3", "6"], wait=3000), r"^ sum = 0$")
+    expect("induction: P(n+1)", s.tool("3", "4", ["n^2", "0", "5", "(n+1)(n+2)(2n+3)/6"], wait=4000),
+           r"^ S\(n\) is the sum to n\+1: P\(n\+1\)$")
+    expect("induction: n terms", s.tool("3", "4", ["5n+4", "0", "5", "n(3+5n)/2"], wait=4000),
+           r"^ S\(n\) is the sum to n-1: n terms$")
 
     expect("Bayes, P(X|F) = 1", s.tool("4", "1", ["1", "0.01", "0.015"]), r"^ P\(F\|X\) = 200/497 ~ 0\.4024$")
     expect("Bayes, P(X|F) = 0.08", s.tool("4", "1", ["0.08", "0.4", "0.01"]), r"^ P\(F\|X\) = 16/19 ~ 0\.8421$")
@@ -328,6 +338,13 @@ def main() -> int:
     expect("master theorem, merge sort", s.tool("5", "3", ["2", "2", "1"]), r"^ Theta\(n\^1 log n\)$")
     expect("master theorem, leaves", s.tool("5", "3", ["3", "2", "1"]),
            r"^ Theta\(n\^log2\(3\)\) ~ n\^1\.58$")
+    dfa = s.tool("5", "4", ["-,0,0", "1,2,2", "", "0", "1111,1101,0000,1110"], wait=2000)
+    expect("DFA accepts", dfa, r"^ 1110: 0\(A\), accept$")
+    expect("DFA gets stuck", dfa, r"^ 0000: none: stuck, reject$")
+    expect("DFA ends in a state", s.tool("5", "4", ["0,1,2", "1,2,0", "", "2", "110110"]),
+           r"^ 110110: 1\(B\), reject$")
+    expect("NFA ends in a set", s.tool("5", "4", ["0,2,-", "01,-,-", "", "2", "110"]),
+           r"^ 110: 0\(A\),2\(C\), accept$")
 
     s.lines += ["keys 6", "run 500"]
     if tios:

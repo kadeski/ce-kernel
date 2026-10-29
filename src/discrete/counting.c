@@ -312,6 +312,42 @@ static bool tool_lex(const struct value *v)
     return true;
 }
 
+/* ---- in a row ---- */
+
+static const struct field row_fields[] = {
+    { "others", F_INT },                /* free to sit anywhere */
+    { "k", F_INT },                     /* the ones with a rule */
+};
+
+static bool tool_row(const struct value *v)
+{
+    int64_t n = v[0].i, k = v[1].i, a, b, r;
+    if (n < 0 || k < 0)
+        return ui_error("others and k must be 0 or more");
+
+    /* Together: glue the k into one block, so n+1 blocks, times k! inside. */
+    if (i64_fact(n + 1, &a) && i64_fact(k, &b) && i64_mul(a, b, &r)) {
+        ui_answer("together: %lld", r);
+        ui_step("glue: (%lld+1)! * %lld! = %lld * %lld", n, k, a, b);
+    } else {
+        ui_say("together: %s", too_big);
+    }
+    /* Apart: seat the others, then the k in k of the n+1 gaps around them. */
+    if (k > n + 1) {
+        ui_answer("none next to each other: 0");
+        ui_step("%lld gaps for %lld", n + 1, k);
+    } else if (i64_fact(n, &a) && i64_perm(n + 1, k, &b) && i64_mul(a, b, &r)) {
+        ui_answer("none next to each other: %lld", r);
+        ui_step("gaps: %lld! * P(%lld,%lld) = %lld * %lld", n, n + 1, k, a, b);
+    } else {
+        ui_say("apart: %s", too_big);
+    }
+    if (i64_fact(n + k, &a))
+        ui_say("no rule: (%lld+%lld)! = %lld", n, k, a);
+    ui_check("not all together = no rule - together");
+    return true;
+}
+
 /* ---- decision tree ---- */
 
 /* A question, or for a leaf, the rule and the tool (in tools[]) for it. */
@@ -322,7 +358,7 @@ struct node {
     int8_t tool;                        /* -1 for none */
 };
 
-enum { CHOOSE, MULTISET, MULTINOMIAL, MAPS, PIGEON, INCEXC };
+enum { CHOOSE, MULTISET, MULTINOMIAL, MAPS, PIGEON, INCEXC, LEX, TREE, ROW };
 
 static const struct node tree[] = {
     /*  0 */ { NULL, "A sequence of slots, one pick each?", 11, 1, -1 },
@@ -343,8 +379,8 @@ static const struct node tree[] = {
     /* 15 */ { "P(n,k) = n!/(n-k)!", NULL, -1, -1, CHOOSE },
     /* 16 */ { "Multiset: C(k+n-1, n-1)", NULL, -1, -1, MULTISET },
     /* 17 */ { "C(n,k) = n!/(k!(n-k)!)", NULL, -1, -1, CHOOSE },
-    /* 18 */ { "Glue: blocks! * orders inside", NULL, -1, -1, -1 },
-    /* 19 */ { "Gaps: k! * P(k+1, r)", NULL, -1, -1, CHOOSE },
+    /* 18 */ { "Glue: (n+1)! * k!, n others", NULL, -1, -1, ROW },
+    /* 19 */ { "Gaps: n! * P(n+1, k), n others", NULL, -1, -1, ROW },
     /* 20 */ { "Complement: all - the bad ones", NULL, -1, -1, -1 },
     /* 21 */ { "Inclusion-exclusion", NULL, -1, -1, INCEXC },
     /* 22 */ { "A repeat guaranteed: pigeonhole", NULL, -1, -1, PIGEON },
@@ -400,8 +436,9 @@ static const struct tool tools[] = {
     [MAPS] = { "functions A to B", FIELDS(maps_fields), tool_maps, NOTES, "TWO WORDS", NULL },
     [PIGEON] = { "pigeonhole", FIELDS(pigeon_fields), tool_pigeon, NOTES, "PIGEONHOLE", NULL },
     [INCEXC] = { "inclusion-exclusion", FIELDS(incexc_fields), tool_incexc, NOTES, "INCL-EXCL", NULL },
-    { "lex order", FIELDS(lex_fields), tool_lex, NOTES, "LEX ORDER", NULL },
-    { "decision tree", NULL, 0, NULL, NOTES, "PICK FORMULA", run_tree },
+    [LEX] = { "lex order", FIELDS(lex_fields), tool_lex, NOTES, "LEX ORDER", NULL },
+    [TREE] = { "decision tree", NULL, 0, NULL, NOTES, "PICK FORMULA", run_tree },
+    [ROW] = { "in a row: together, apart", FIELDS(row_fields), tool_row, NOTES, "GAP / GLUE", NULL },
 };
 
 const struct section count_section = { "Counting", TOOLS(tools) };

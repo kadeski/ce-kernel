@@ -1,4 +1,5 @@
 #include "discrete.h"
+#include "../core/expr.h"
 #include "../core/imath.h"
 #include "../kernel/events.h"
 
@@ -11,15 +12,52 @@ static const char digit_chars[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 /* ---- div and mod ---- */
 
 static const struct field divmod_fields[] = {
-    { "x", F_INT },
+    { "x", F_DIGITS },                  /* an expression, or digits with n missing */
     { "N", F_INT },
 };
 
+/* x with a missing digit n, as in 1233n2: lists the digits that make N
+ * divide it. */
+static bool divmod_digit(const char *x, int64_t n)
+{
+    static char s[FIELD_MAX + 1];
+    struct frac f;
+    uint8_t count = 0;
+    text_clear();
+    for (char d = '0'; d <= '9'; d++) {
+        for (uint8_t i = 0; (s[i] = x[i] == 'n' ? d : x[i]); i++)
+            ;
+        if (!expr_eval(s, NULL, &f) || !frac_is_int(f))
+            return ui_error("x is too big");
+        int64_t q, r;
+        i64_divmod(f.num, n, &q, &r);
+        ui_step("%s mod %lld = %lld", s, n, r);
+        if (r)
+            continue;
+        if (count++)
+            text_add(" ");
+        char one[2] = { d, '\0' };
+        text_add(one);
+    }
+    ui_answer("%d digits work: %s", count, count ? text() : "none");
+    ui_check("by 8: the last 3 digits; by 4: last 2");
+    return true;
+}
+
 static bool tool_divmod(const struct value *v)
 {
-    int64_t x = v[0].i, n = v[1].i, q, r;
+    int64_t n = v[1].i, q, r;
+    struct frac f;
     if (n <= 0)
         return ui_error("N must be positive");
+    const char *x0 = v[0].text;
+    if (strchr(x0, 'n') && strspn(x0, "0123456789n") == strlen(x0))
+        return divmod_digit(x0, n);
+    if (!expr_eval(x0, NULL, &f))
+        return ui_error("x: %s", expr_error());
+    if (!frac_is_int(f))
+        return ui_error("x must be a whole number");
+    int64_t x = f.num;
     i64_divmod(x, n, &q, &r);
     ui_answer("q = %lld    r = %lld", q, r);
     ui_say(r ? "%lld does not divide %lld" : "%lld divides %lld", n, x);
@@ -145,7 +183,7 @@ static bool tool_powmod(const struct value *v)
     if (y < 0)
         return ui_error("y must be 0 or more");
 
-    /* The loop on the formula sheet, reducing mod N at every step. */
+    /* Square-and-multiply, reducing mod N at every step. */
     int64_t p = 1 % n, s = i64_mod(x, n);
     ui_step_head("%12s%4s%12s%12s", "r", "bit", "p", "s");
     for (int64_t r = y; r; r >>= 1) {
