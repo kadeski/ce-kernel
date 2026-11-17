@@ -20,9 +20,9 @@ static bool probabilities(const struct field *f, const struct value *v, uint8_t 
 /* ---- Bayes ---- */
 
 static const struct field bayes_fields[] = {
-    { "P(X|F)", F_NUM },
-    { "P(F)", F_NUM },
-    { "P(X|~F)", F_NUM },
+    { "P(X|F)", F_NUM, "chance of X when F is true, 0 to 1" },
+    { "P(F)", F_NUM, "chance of F, 0 to 1" },
+    { "P(X|~F)", F_NUM, "chance of X when F is false, 0 to 1" },
 };
 
 static bool tool_bayes(const struct value *v)
@@ -52,9 +52,9 @@ static bool tool_bayes(const struct value *v)
 /* ---- and, or, given ---- */
 
 static const struct field rules_fields[] = {
-    { "P(A)", F_NUM },
-    { "P(B)", F_NUM },
-    { "P(AnB)", F_NUM | F_OPT },
+    { "P(A)", F_NUM, "chance of A, 0 to 1" },
+    { "P(B)", F_NUM, "chance of B, 0 to 1" },
+    { "P(AnB)", F_NUM | F_OPT, "optional: both (else independent)" },
 };
 
 static bool tool_rules(const struct value *v)
@@ -94,9 +94,9 @@ static bool tool_rules(const struct value *v)
 /* ---- binomial ---- */
 
 static const struct field binomial_fields[] = {
-    { "n", F_INT },
-    { "p", F_NUM },
-    { "k", F_INT },
+    { "n", F_INT, "number of trials, 0 to 100" },
+    { "p", F_NUM, "chance of success each trial, 0 to 1" },
+    { "k", F_INT, "successes to ask about, 0 to n" },
 };
 
 static bool tool_binomial(const struct value *v)
@@ -132,9 +132,9 @@ static bool tool_binomial(const struct value *v)
 /* ---- at least once ---- */
 
 static const struct field atleast_fields[] = {
-    { "q", F_NUM },
-    { "n", F_INT | F_OPT },
-    { "target", F_NUM | F_OPT },
+    { "q", F_NUM, "chance each try, over 0, up to 1" },
+    { "n", F_INT | F_OPT, "how many tries; give n or a target" },
+    { "target", F_NUM | F_OPT, "chance to reach, under 1; this or n" },
 };
 
 #define ATLEAST_MAX 100000
@@ -197,8 +197,8 @@ static bool tool_atleast(const struct value *v)
 /* ---- expected value ---- */
 
 static const struct field expect_fields[] = {
-    { "x", F_LIST },
-    { "p", F_LIST | F_OPT },
+    { "x", F_LIST, "the values, like 1,2,3,4,5,6" },
+    { "p", F_LIST | F_OPT, "optional: their chances (else equal)" },
 };
 
 static bool tool_expect(const struct value *v)

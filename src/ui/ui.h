@@ -86,6 +86,10 @@ enum field_kind {
 struct field {
     const char *label;
     uint8_t kind;
+    /* What to type, shown under the fields while the cursor is in this one:
+     * one line of up to 39 characters, cut off past that. A field that may
+     * be left empty says when, and what empty means. */
+    const char *hint;
 };
 
 /* A field's value once ENTER has read it. */
@@ -122,13 +126,14 @@ void ui_set_notes(enum run_end (*open)(const char *file, const char *heading));
 /* Lists a section's tools until CLEAR, ON or 2nd + MODE. */
 enum run_end ui_section(const struct section *s);
 /* Runs one tool's form: UP and DOWN move between fields, ENTER shows the
- * answer, Y= the steps, WINDOW the notes, and CLEAR or GRAPH go back. */
+ * answer or names a required field left empty, Y= the steps, WINDOW the
+ * notes, and CLEAR or GRAPH go back. */
 enum run_end ui_tool(const struct tool *t);
 
 /*
  * A tool's output, printf-style (%d %u %s %c with l and ll, a width, - and 0).
- * The first four go on the form under the fields; ui_step and ui_step_head
- * go to the Steps view. Long lines wrap.
+ * The first four go on the form under the current field's hint; ui_step and
+ * ui_step_head go to the Steps view. Long lines wrap.
  */
 void ui_answer(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 void ui_say(const char *fmt, ...) __attribute__((format(printf, 1, 2)));

@@ -6,7 +6,7 @@
 /* ---- bits and binary search ---- */
 
 static const struct field bits_fields[] = {
-    { "n", F_INT },
+    { "n", F_INT, "whole number, 1 or more" },
 };
 
 static bool tool_bits(const struct value *v)
@@ -30,7 +30,7 @@ static bool tool_bits(const struct value *v)
 /* ---- sort step counts ---- */
 
 static const struct field sorts_fields[] = {
-    { "n", F_INT },
+    { "n", F_INT, "how many items, 1 to 3*10^9" },
 };
 
 static bool tool_sorts(const struct value *v)
@@ -53,9 +53,9 @@ static bool tool_sorts(const struct value *v)
 /* ---- master theorem ---- */
 
 static const struct field master_fields[] = {
-    { "a", F_INT },
-    { "b", F_INT },
-    { "k", F_INT },
+    { "a", F_INT, "T(n) = a*T(n/b) + n^k, a >= 1" },
+    { "b", F_INT, "T(n) = a*T(n/b) + n^k, b >= 2" },
+    { "k", F_INT, "T(n) = a*T(n/b) + n^k, k >= 0" },
 };
 
 /* log2(x) in 16.16 fixed point for 1 <= x < 2^30, by repeated squaring. */
@@ -113,11 +113,11 @@ static bool tool_master(const struct value *v)
 /* States are the digits 0-9 (A = 0, B = 1, ...). A set of them is a bit mask,
  * so one table serves a DFA and an NFA. */
 static const struct field fsm_fields[] = {
-    { "on 0", F_DIGITS },               /* per state: next states, "-" for none */
-    { "on 1", F_DIGITS },
-    { "start", F_INT | F_OPT },
-    { "accept", F_DIGITS | F_OPT },     /* "2" or "05" */
-    { "input", F_DIGITS },              /* "1101" or "1111,1101,..." */
+    { "on 0", F_DIGITS, "next on 0 for each state, like 1,2,-" },
+    { "on 1", F_DIGITS, "next on 1 for each state, like 1,2,-" },
+    { "start", F_INT | F_OPT, "optional: the start state (else 0)" },
+    { "accept", F_DIGITS | F_OPT, "optional: accept states, like 2 or 05" },
+    { "input", F_DIGITS, "0s and 1s; commas between words" },
 };
 
 #define FSM_STATES 10

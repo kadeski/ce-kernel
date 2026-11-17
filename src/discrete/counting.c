@@ -12,8 +12,8 @@ static const char too_big[] = "too big for 64 bits";
 /* ---- nCr, nPr, n! ---- */
 
 static const struct field choose_fields[] = {
-    { "n", F_INT },
-    { "k", F_INT | F_OPT },
+    { "n", F_INT, "how many to pick from, 0 or more" },
+    { "k", F_INT | F_OPT, "optional: how many to pick, 0 or more" },
 };
 
 static bool tool_choose(const struct value *v)
@@ -52,10 +52,10 @@ static bool tool_choose(const struct value *v)
 /* ---- multisets ---- */
 
 static const struct field multiset_fields[] = {
-    { "chosen", F_INT },
-    { "types", F_INT },
-    { "at least", F_INT | F_OPT },
-    { "at most", F_INT | F_OPT },
+    { "chosen", F_INT, "how many to pick, repeats allowed" },
+    { "types", F_INT, "kinds to pick from, 1 or more" },
+    { "at least", F_INT | F_OPT, "optional: the fewest of each type" },
+    { "at most", F_INT | F_OPT, "optional: the most of each type" },
 };
 
 /* Ways to pick n from m types with repeats: C(n+m-1, m-1). */
@@ -109,7 +109,7 @@ static bool tool_multiset(const struct value *v)
 /* ---- multinomial ---- */
 
 static const struct field multinomial_fields[] = {
-    { "counts", F_LIST },
+    { "counts", F_LIST, "how many of each kind, like 1,4,4,2" },
 };
 
 static bool tool_multinomial(const struct value *v)
@@ -140,8 +140,8 @@ static bool tool_multinomial(const struct value *v)
 /* ---- functions A -> B ---- */
 
 static const struct field maps_fields[] = {
-    { "|A|", F_INT },
-    { "|B|", F_INT },
+    { "|A|", F_INT, "size of the domain, 0 or more" },
+    { "|B|", F_INT, "size of the codomain, 0 or more" },
 };
 
 static bool tool_maps(const struct value *v)
@@ -176,9 +176,9 @@ static bool tool_maps(const struct value *v)
 /* ---- pigeonhole ---- */
 
 static const struct field pigeon_fields[] = {
-    { "boxes", F_INT },
-    { "items", F_INT | F_OPT },
-    { "want", F_INT | F_OPT },
+    { "boxes", F_INT, "how many boxes, 1 or more" },
+    { "items", F_INT | F_OPT, "items placed; give this or want" },
+    { "want", F_INT | F_OPT, "how many in one box; this or items" },
 };
 
 static bool tool_pigeon(const struct value *v)
@@ -205,14 +205,14 @@ static bool tool_pigeon(const struct value *v)
 /* ---- inclusion-exclusion ---- */
 
 static const struct field incexc_fields[] = {
-    { "A", F_INT },
-    { "B", F_INT },
-    { "AnB", F_INT },
-    { "C", F_INT | F_OPT },
-    { "AnC", F_INT | F_OPT },
-    { "BnC", F_INT | F_OPT },
-    { "AnBnC", F_INT | F_OPT },
-    { "all", F_INT | F_OPT },
+    { "A", F_INT, "how many are in A" },
+    { "B", F_INT, "how many are in B" },
+    { "AnB", F_INT, "how many are in both A and B" },
+    { "C", F_INT | F_OPT, "optional: how many in C, for 3 sets" },
+    { "AnC", F_INT | F_OPT, "in both A and C; needed with C" },
+    { "BnC", F_INT | F_OPT, "in both B and C; needed with C" },
+    { "AnBnC", F_INT | F_OPT, "in all three; needed with C" },
+    { "all", F_INT | F_OPT, "optional: the total, to count the rest" },
 };
 
 static bool tool_incexc(const struct value *v)
@@ -242,8 +242,8 @@ static bool tool_incexc(const struct value *v)
 /* ---- lex order ---- */
 
 static const struct field lex_fields[] = {
-    { "a", F_LIST },
-    { "b", F_LIST | F_OPT },
+    { "a", F_LIST, "a list, like 4,5,2,3,1,6" },
+    { "b", F_LIST | F_OPT, "optional: a list to compare with a" },
 };
 
 static void text_tuple(const int64_t *t, uint8_t n)
@@ -315,8 +315,8 @@ static bool tool_lex(const struct value *v)
 /* ---- in a row ---- */
 
 static const struct field row_fields[] = {
-    { "others", F_INT },                /* free to sit anywhere */
-    { "k", F_INT },                     /* the ones with a rule */
+    { "others", F_INT, "how many are free to sit anywhere" },
+    { "k", F_INT, "how many must be together, or apart" },
 };
 
 static bool tool_row(const struct value *v)

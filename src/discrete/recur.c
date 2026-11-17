@@ -12,12 +12,12 @@ static const char too_big[] = "too big for exact fractions";
 /* ---- iterate ---- */
 
 static const struct field iterate_fields[] = {
-    { "f(n)", F_DIGITS },               /* in a = f(n-1), b = f(n-2) and n */
-    { "n0", F_INT | F_OPT },
-    { "f(n0)", F_NUM },
-    { "f(n0+1)", F_NUM | F_OPT },
-    { "last n", F_INT | F_OPT },
-    { "guess", F_DIGITS | F_OPT },      /* a closed form in n to check */
+    { "f(n)", F_DIGITS, "the rule in a = f(n-1), b = f(n-2), n" },
+    { "n0", F_INT | F_OPT, "optional: the first n (else 0)" },
+    { "f(n0)", F_NUM, "the first value" },
+    { "f(n0+1)", F_NUM | F_OPT, "the second value; needed if f uses b" },
+    { "last n", F_INT | F_OPT, "optional: up to n0+60 (else n0+10)" },
+    { "guess", F_DIGITS | F_OPT, "optional: a closed form in n to check" },
 };
 
 #define ITERATE_MAX 60
@@ -74,10 +74,10 @@ static bool tool_iterate(const struct value *v)
 /* ---- characteristic equation ---- */
 
 static const struct field chareq_fields[] = {
-    { "c1", F_NUM },
-    { "c2", F_NUM },
-    { "f0", F_NUM },
-    { "f1", F_NUM },
+    { "c1", F_NUM, "f(n) = c1*f(n-1) + c2*f(n-2)" },
+    { "c2", F_NUM, "f(n) = c1*f(n-1) + c2*f(n-2), not 0" },
+    { "f0", F_NUM, "the value of f(0)" },
+    { "f1", F_NUM, "the value of f(1)" },
 };
 
 /* sqrt(d) when it is a fraction. */
@@ -172,10 +172,10 @@ static bool tool_chareq(const struct value *v)
 /* ---- sums ---- */
 
 static const struct field sums_fields[] = {
-    { "n", F_INT | F_OPT },
-    { "a", F_NUM | F_OPT },
-    { "d", F_NUM | F_OPT },
-    { "r", F_NUM | F_OPT },
+    { "n", F_INT | F_OPT, "terms; give n, or a with d or r" },
+    { "a", F_NUM | F_OPT, "first term; give it with d or r" },
+    { "d", F_NUM | F_OPT, "step: a, a+d, a+2d, ...; needs n" },
+    { "r", F_NUM | F_OPT, "ratio: a, a*r, a*r^2, ...; n optional" },
 };
 
 static bool tool_sums(const struct value *v)
@@ -235,10 +235,10 @@ static bool tool_sums(const struct value *v)
 /* ---- sum over a range ---- */
 
 static const struct field range_fields[] = {
-    { "f(n)", F_DIGITS },               /* the term, in n */
-    { "from n", F_INT },
-    { "to n", F_INT },
-    { "S(n)?", F_DIGITS | F_OPT },      /* a closed form to check */
+    { "f(n)", F_DIGITS, "the term in n, like 2n-3" },
+    { "from n", F_INT, "the first n" },
+    { "to n", F_INT, "the last n; at most 500 terms" },
+    { "S(n)?", F_DIGITS | F_OPT, "optional: a closed form to check" },
 };
 
 #define RANGE_MAX 500

@@ -277,6 +277,12 @@ def main() -> int:
     expect("gcd and lcm", gcd, r"^ gcd = 2    lcm = 1780$")
     expect("Y= shows the steps", steps, r"^ 178 mod 20 = 18$")
     expect("inverse", s.tool("1", "3", ["33", "13"]), r"^ 13\^-1 mod 33 = 28$")
+    empty = s.tool("1", "3", [""])
+    expect("ENTER names a required field left empty", empty, r"^ N is needed$")
+    expect("the form shows the current field's hint", empty, r"^ the modulus, 2 or more$")
+    empty = s.tool("1", "3", ["33"])
+    expect("ENTER moves to the empty field", empty,
+           r"^> x =\n\n whole number with gcd\(x, N\) = 1\n\n x is needed$")
     expect("ones digit", s.tool("1", "4", ["3", "902", "10"]), r"^ 3\^902 mod 10 = 9$")
     expect("the exponent's bits", s.tool("1", "4", ["17", "21", "5"]),
            r"^ 17\^21 = 17\^16 \* 17\^4 \* 17$")

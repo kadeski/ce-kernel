@@ -12,8 +12,8 @@ static const char digit_chars[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 /* ---- div and mod ---- */
 
 static const struct field divmod_fields[] = {
-    { "x", F_DIGITS },                  /* an expression, or digits with n missing */
-    { "N", F_INT },
+    { "x", F_DIGITS, "whole number; n marks a missing digit" },
+    { "N", F_INT, "the divisor, 1 or more" },
 };
 
 /* x with a missing digit n, as in 1233n2: lists the digits that make N
@@ -70,8 +70,8 @@ static bool tool_divmod(const struct value *v)
 /* ---- gcd and lcm ---- */
 
 static const struct field gcd_fields[] = {
-    { "a", F_INT },
-    { "b", F_INT },
+    { "a", F_INT, "whole number; a and b not both 0" },
+    { "b", F_INT, "whole number; a and b not both 0" },
 };
 
 static bool tool_gcd(const struct value *v)
@@ -104,8 +104,8 @@ static bool tool_gcd(const struct value *v)
 /* ---- inverse mod N ---- */
 
 static const struct field inverse_fields[] = {
-    { "N", F_INT },
-    { "x", F_INT },
+    { "N", F_INT, "the modulus, 2 or more" },
+    { "x", F_INT, "whole number with gcd(x, N) = 1" },
 };
 
 /* x^-1 mod n by the extended Euclid tableau, with its rows as steps. The
@@ -155,9 +155,9 @@ static bool tool_inverse(const struct value *v)
 /* ---- power mod N ---- */
 
 static const struct field powmod_fields[] = {
-    { "x", F_INT },
-    { "y", F_INT },
-    { "N", F_INT },
+    { "x", F_INT, "the base, a whole number" },
+    { "y", F_INT, "the exponent, 0 or more" },
+    { "N", F_INT, "the modulus, 1 or more" },
 };
 
 static void text_binary(int64_t y)
@@ -218,7 +218,7 @@ static bool tool_powmod(const struct value *v)
 /* ---- primes and factors ---- */
 
 static const struct field factor_fields[] = {
-    { "n", F_INT },
+    { "n", F_INT, "whole number, 1 to 4294967295" },
 };
 
 static bool tool_factor(const struct value *v)
@@ -288,9 +288,9 @@ static bool tool_factor(const struct value *v)
 /* ---- bases ---- */
 
 static const struct field base_fields[] = {
-    { "n", F_DIGITS },
-    { "base", F_INT | F_OPT },
-    { "to", F_INT | F_OPT },
+    { "n", F_DIGITS, "its digits: 0-9, then a-z for 10-35" },
+    { "base", F_INT | F_OPT, "optional: n's base, 2 to 36 (else 10)" },
+    { "to", F_INT | F_OPT, "optional: one more base, 2 to 36" },
 };
 
 /* Digits of v in base b, by repeated division, with each division as a step
@@ -376,11 +376,11 @@ static bool tool_base(const struct value *v)
 /* ---- RSA ---- */
 
 static const struct field rsa_fields[] = {
-    { "p", F_INT },
-    { "q", F_INT },
-    { "e", F_INT },
-    { "m", F_INT | F_OPT },
-    { "c", F_INT | F_OPT },
+    { "p", F_INT, "a prime under 2^31" },
+    { "q", F_INT, "a different prime under 2^31" },
+    { "e", F_INT, "between 1 and phi, gcd(e, phi) = 1" },
+    { "m", F_INT | F_OPT, "optional: encrypt this m, under N" },
+    { "c", F_INT | F_OPT, "optional: decrypt this c, under N" },
 };
 
 static bool tool_rsa(const struct value *v)
@@ -421,9 +421,9 @@ static bool tool_rsa(const struct value *v)
 /* ---- ciphers and A=1 codes ---- */
 
 static const struct field cipher_fields[] = {
-    { "text", F_LETTERS },
-    { "a", F_INT | F_OPT },
-    { "b", F_INT | F_OPT },
+    { "text", F_LETTERS, "letters to encode and decode" },
+    { "a", F_INT | F_OPT, "optional: a in a*x + b (else 1)" },
+    { "b", F_INT | F_OPT, "optional: b in a*x + b (else 0)" },
 };
 
 static bool tool_cipher(const struct value *v)
@@ -475,10 +475,10 @@ static bool tool_cipher(const struct value *v)
 /* ---- LCG ---- */
 
 static const struct field lcg_fields[] = {
-    { "a", F_INT },
-    { "c", F_INT },
-    { "m", F_INT },
-    { "x0", F_INT },
+    { "a", F_INT, "multiplier: next x = (a*x + c) mod m" },
+    { "c", F_INT, "added each step: (a*x + c) mod m" },
+    { "m", F_INT, "the modulus, 1 or more" },
+    { "x0", F_INT, "the first x" },
 };
 
 #define LCG_TERMS 20

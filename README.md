@@ -59,7 +59,7 @@ Before you start, archive anything in RAM you care about. If the kernel ever han
    make smoke-tios TIOS_ROM=path/to/your.rom ARTIFICE=path/to/arTIfiCE_v2.1.8xp
    ```
    This sends arTIfiCE and `bin/KERNEL.8xp` to a headless CEmu, plus a small AppVar and a Python notes file to the archive (the dumped ROM's archive is empty) and a TI-Basic program `ZCLOCK` that sets the clock to 13:45 for the status bar to show. It starts the kernel from arTIfiCE, runs the tool, notes and shell checks, and then checks that `2nd` `mode` and `on` at the menu and `exit` in the shell each return to arTIfiCE's launcher, and that `mode` there quits to a home screen that still computes and runs programs. To try it by hand instead, open the ROM in CEmu, send both files and start the kernel from arTIfiCE.
-5. Send `bin/KERNEL.8xp` to the calculator and start it from arTIfiCE's launcher. It is stored compressed (about 44 KB) and unpacks to about 84 KB of RAM when it starts, on top of the room the program itself takes, so archive what you can first. The first run on the calculator is the real test of how much it needs.
+5. Send `bin/KERNEL.8xp` to the calculator and start it from arTIfiCE's launcher. It is stored compressed (about 49 KB) and unpacks to about 99 KB of RAM when it starts, on top of the room the program itself takes, so archive what you can first. The first run on the calculator is the real test of how much it needs.
 6. For the Notes entry, send your `*R.py` notes files (such as `NUMR.py`) to the archive.
 
 Exam (Press-to-Test) mode deletes arTIfiCE; send it again afterwards.
@@ -77,7 +77,7 @@ The kernel starts on a menu: press a digit, or move with the arrows and press `e
 
 ### Study tools
 
-The first five entries are sections of tools. A tool is a form: type a value in each field, move between fields with the up and down arrows, and press `enter` for the answer and a line that checks it or names the formula. Number fields take expressions, so `1/6`, `0.015` or `0.8^6*0.2^4` all work, and answers are exact fractions with a decimal (`200/497 ~ 0.4024`; `=` instead of `~` when the decimal is exact). The keys under the screen are labelled at the bottom: `y=` shows each step of the work, `window` opens the notes at the tool's heading, `graph` goes back.
+The first five entries are sections of tools. A tool is a form: type a value in each field, move between fields with the up and down arrows, and press `enter` for the answer and a line that checks it or names the formula. A grey line under the fields says what the current field takes and whether it can stay empty. Number fields take expressions, so `1/6`, `0.015` or `0.8^6*0.2^4` all work, and answers are exact fractions with a decimal (`200/497 ~ 0.4024`; `=` instead of `~` when the decimal is exact). The keys under the screen are labelled at the bottom: `y=` shows each step of the work, `window` opens the notes at the tool's heading, `graph` goes back.
 
 | Section | Tools |
 |---|---|

@@ -463,6 +463,10 @@ static const char *step_line(uint24_t i, uint8_t *len, uint8_t *color)
     return step_lines[i].text;
 }
 
+/* Under the fields: a blank row, the hint, a blank row, then the output. */
+#define HINT_ROW(t)   (FORM_TOP + (t)->nfields + 1)
+#define OUTPUT_ROW(t) (HINT_ROW(t) + 2)
+
 static uint8_t field_col(const struct field *f)
 {
     return (uint8_t)(2 + strlen(f->label) + 3);     /* "> label = " */
@@ -480,9 +484,17 @@ static void draw_field(const struct tool *t, uint8_t i, bool current)
     clear_from((uint8_t)(col + strlen(texts[i])), row, COLOR_BG);
 }
 
+/* The current field's hint, on its own row so it stays up beside an answer
+ * or an error. */
+static void draw_hint(const struct tool *t, uint8_t cur)
+{
+    const char *hint = t->fields[cur].hint;
+    draw_line(HINT_ROW(t), hint ? hint : "", hint ? strlen(hint) : 0, COLOR_DIM);
+}
+
 static void draw_output(const struct tool *t)
 {
-    uint8_t row = FORM_TOP + t->nfields + 1, last = SOFT_ROW - 1;
+    uint8_t row = OUTPUT_ROW(t), last = SOFT_ROW - 1;
     for (uint8_t r = row; r <= last; r++)
         clear_from(0, r, COLOR_BG);
     if (!answered) {
@@ -506,6 +518,7 @@ static void draw_form(const struct tool *t, uint8_t cur)
     draw_line(1, t->title, strlen(t->title), COLOR_ACCENT);
     for (uint8_t i = 0; i < t->nfields; i++)
         draw_field(t, i, i == cur);
+    draw_hint(t, cur);
     draw_output(t);
     const char *const soft[SOFT_KEYS] = {
         "Steps", t->notes_file && open_notes ? "Notes" : NULL, NULL, NULL, "Back",
@@ -559,22 +572,23 @@ static bool read_field(const struct field *f, uint8_t i)
 }
 
 /* Reads the fields and runs the tool. Returns the field to edit next: the
- * first required one left empty, one that didn't parse, or cur. */
+ * first required one left empty or one that didn't parse, after saying
+ * which, or cur. */
 static uint8_t answer(const struct tool *t, uint8_t cur)
 {
-    for (uint8_t i = 0; i < t->nfields; i++)
-        if (!(t->fields[i].kind & F_OPT) && !texts[i][0])
-            return i;
     nform = nsteps = 0;
     answered = true;
     for (uint8_t i = 0; i < t->nfields; i++) {
-        if (!read_field(&t->fields[i], i)) {
-            draw_output(t);
-            return i;
-        }
+        const struct field *f = &t->fields[i];
+        if (!(f->kind & F_OPT) && !texts[i][0])
+            ui_error("%s is needed", f->label);
+        else if (read_field(f, i))
+            continue;
+        draw_output(t);
+        return i;
     }
     static const char working[] = "working...";
-    draw_line(FORM_TOP + t->nfields + 1, working, sizeof working - 1, COLOR_DIM);
+    draw_line(OUTPUT_ROW(t), working, sizeof working - 1, COLOR_DIM);
     t->compute(values);
     draw_output(t);
     return cur;
@@ -638,6 +652,7 @@ enum run_end ui_tool(const struct tool *t)
             draw_field(t, cur, false);
             draw_field(t, next, true);
             cur = next;
+            draw_hint(t, cur);
         }
     }
 }
