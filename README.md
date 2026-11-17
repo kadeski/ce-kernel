@@ -59,7 +59,7 @@ Before you start, archive anything in RAM you care about. If the kernel ever han
    make smoke-tios TIOS_ROM=path/to/your.rom ARTIFICE=path/to/arTIfiCE_v2.1.8xp
    ```
    This sends arTIfiCE and `bin/KERNEL.8xp` to a headless CEmu, plus a small AppVar and a Python notes file to the archive (the dumped ROM's archive is empty) and a TI-Basic program `ZCLOCK` that sets the clock to 13:45 for the status bar to show. It starts the kernel from arTIfiCE, runs the tool, notes and shell checks, and then checks that `2nd` `mode` and `on` at the menu and `exit` in the shell each return to arTIfiCE's launcher, and that `mode` there quits to a home screen that still computes and runs programs. To try it by hand instead, open the ROM in CEmu, send both files and start the kernel from arTIfiCE.
-5. Send `bin/KERNEL.8xp` to the calculator and start it from arTIfiCE's launcher. It is stored compressed (about 44 KB) and unpacks to about 84 KB of RAM when it starts, on top of the room the program itself takes, so archive what you can first. The first run on the calculator is the real test of how much it needs.
+5. Send `bin/KERNEL.8xp` to the calculator and start it from arTIfiCE's launcher. It is stored compressed (about 49 KB) and unpacks to about 99 KB of RAM when it starts, on top of the room the program itself takes, so archive what you can first. The first run on the calculator is the real test of how much it needs.
 6. For the Notes entry, send your `*R.py` notes files (such as `NUMR.py`) to the archive.
 
 Exam (Press-to-Test) mode deletes arTIfiCE; send it again afterwards.
@@ -77,15 +77,15 @@ The kernel starts on a menu: press a digit, or move with the arrows and press `e
 
 ### Study tools
 
-The first five entries are sections of tools. A tool is a form: type a value in each field, move between fields with the up and down arrows, and press `enter` for the answer and a line that checks it or names the formula. Number fields take expressions, so `1/6`, `0.015` or `0.8^6*0.2^4` all work, and answers are exact fractions with a decimal (`200/497 ~ 0.4024`; `=` instead of `~` when the decimal is exact). The keys under the screen are labelled at the bottom: `y=` shows each step of the work, `window` opens the notes at the tool's heading, `graph` goes back.
+The first five entries are sections of tools. A tool is a form: type a value in each field, move between fields with the up and down arrows, and press `enter` for the answer and a line that checks it or names the formula. A grey line under the fields says what the current field takes and whether it can stay empty. Number fields take expressions, so `1/6`, `0.015` or `0.8^6*0.2^4` all work, and answers are exact fractions with a decimal (`200/497 ~ 0.4024`; `=` instead of `~` when the decimal is exact). The keys under the screen are labelled at the bottom: `y=` shows each step of the work, `window` opens the notes at the tool's heading, `graph` goes back.
 
 | Section | Tools |
 |---|---|
-| Number theory | div and mod (rounding down), gcd and lcm with the remainders, inverse mod N with the extended Euclid tableau, power mod N, primes and factors, bases, RSA, ciphers and A=1 codes, LCG |
-| Counting | nCr, nPr and n!, multisets with lower and upper bounds, multinomial, functions A to B (all, one-to-one, onto), pigeonhole, inclusion-exclusion for 2 or 3 sets, lex order (compare, next permutation), the counting decision tree |
-| Recurrences and sums | iterate a recurrence in `a` = f(n-1), `b` = f(n-2) and `n` (the `x,t,θ,n` key types `n`), characteristic equation with the closed form, sums |
+| Number theory | div and mod (rounding down; type `n` for a missing digit, as in `1233n2`, to list the digits that make N divide it), gcd and lcm with the remainders, inverse mod N with the extended Euclid tableau, power mod N, primes and factors, bases, RSA, ciphers and A=1 codes, LCG |
+| Counting | nCr, nPr and n!, multisets with lower and upper bounds, multinomial, functions A to B (all, one-to-one, onto), pigeonhole, inclusion-exclusion for 2 or 3 sets, lex order (compare, next permutation), the counting decision tree, in a row (k together, or no two of k next to each other) |
+| Recurrences and sums | iterate a recurrence in `a` = f(n-1), `b` = f(n-2) and `n` (the `x,t,θ,n` key types `n`), with an optional closed-form guess to check, characteristic equation with the closed form, sums, the sum of f(n) over any range with an optional S(n) to check (it says whether S(n) is the sum to n or to n+1, the right side of P(n+1)) |
 | Probability | Bayes, and/or/given, binomial, at least once (or how many tries to reach a target), expected value |
-| Algorithms | bits and binary search, sort step counts, master theorem |
+| Algorithms | bits and binary search, sort step counts, master theorem, state machines (DFA or NFA: each state's next states on 0 and on 1, such as `-,0,0` or `13,2`; states are 0-9 for A-J; several inputs at once, separated by commas) |
 
 List fields take values separated by commas, such as `1,4,4,2`.
 

@@ -1,6 +1,7 @@
 #include "discrete.h"
 #include "../core/expr.h"
 #include "../core/imath.h"
+#include "../kernel/events.h"
 
 #include <string.h>
 
@@ -11,11 +12,12 @@ static const char too_big[] = "too big for exact fractions";
 /* ---- iterate ---- */
 
 static const struct field iterate_fields[] = {
-    { "f(n)", F_DIGITS },               /* in a = f(n-1), b = f(n-2) and n */
-    { "n0", F_INT | F_OPT },
-    { "f(n0)", F_NUM },
-    { "f(n0+1)", F_NUM | F_OPT },
-    { "last n", F_INT | F_OPT },
+    { "f(n)", F_DIGITS, "the rule in a = f(n-1), b = f(n-2), n" },
+    { "n0", F_INT | F_OPT, "optional: the first n (else 0)" },
+    { "f(n0)", F_NUM, "the first value" },
+    { "f(n0+1)", F_NUM | F_OPT, "the second value; needed if f uses b" },
+    { "last n", F_INT | F_OPT, "optional: up to n0+60 (else n0+10)" },
+    { "guess", F_DIGITS | F_OPT, "optional: a closed form in n to check" },
 };
 
 #define ITERATE_MAX 60
@@ -29,10 +31,20 @@ static bool tool_iterate(const struct value *v)
     if (last < n0 || last - n0 > ITERATE_MAX)
         return ui_error("last n must be n0 to n0+%d", ITERATE_MAX);
 
-    struct frac vars[3], f = v[2].f, before = frac_int(0);
+    struct frac vars[3] = { frac_int(0), frac_int(0), frac_int(0) }, f = v[2].f, before = frac_int(0), g, miss = frac_int(0);
+    int64_t wrong = n0 - 1;             /* where the guess first misses */
     text_clear();
     for (;;) {
         ui_step("f(%lld) = %s", n, frac_show(f));
+        if (v[5].given && wrong < n0) {
+            vars[2] = frac_int(n);
+            if (!expr_eval(v[5].text, vars, &g))
+                return ui_error("guess: %s", expr_error());
+            if (frac_cmp(g, f)) {
+                wrong = n;
+                miss = g;
+            }
+        }
         if (n > n0)
             text_add(" ");
         text_add(frac_str(f));
@@ -50,17 +62,22 @@ static bool tool_iterate(const struct value *v)
     }
     ui_answer("f(%lld) = %s", last, frac_show(f));
     ui_say("from f(%lld): %s", n0, text());
-    ui_check("a is f(n-1), b is f(n-2)");
+    if (!v[5].given)
+        ui_check("a is f(n-1), b is f(n-2)");
+    else if (wrong < n0)
+        ui_check("guess matches f(%lld) to f(%lld)", n0, last);
+    else
+        ui_check("guess wrong: gives %s at n = %lld", frac_str(miss), wrong);
     return true;
 }
 
 /* ---- characteristic equation ---- */
 
 static const struct field chareq_fields[] = {
-    { "c1", F_NUM },
-    { "c2", F_NUM },
-    { "f0", F_NUM },
-    { "f1", F_NUM },
+    { "c1", F_NUM, "f(n) = c1*f(n-1) + c2*f(n-2)" },
+    { "c2", F_NUM, "f(n) = c1*f(n-1) + c2*f(n-2), not 0" },
+    { "f0", F_NUM, "the value of f(0)" },
+    { "f1", F_NUM, "the value of f(1)" },
 };
 
 /* sqrt(d) when it is a fraction. */
@@ -155,10 +172,10 @@ static bool tool_chareq(const struct value *v)
 /* ---- sums ---- */
 
 static const struct field sums_fields[] = {
-    { "n", F_INT | F_OPT },
-    { "a", F_NUM | F_OPT },
-    { "d", F_NUM | F_OPT },
-    { "r", F_NUM | F_OPT },
+    { "n", F_INT | F_OPT, "terms; give n, or a with d or r" },
+    { "a", F_NUM | F_OPT, "first term; give it with d or r" },
+    { "d", F_NUM | F_OPT, "step: a, a+d, a+2d, ...; needs n" },
+    { "r", F_NUM | F_OPT, "ratio: a, a*r, a*r^2, ...; n optional" },
 };
 
 static bool tool_sums(const struct value *v)
@@ -215,10 +232,81 @@ static bool tool_sums(const struct value *v)
     return true;
 }
 
+/* ---- sum over a range ---- */
+
+static const struct field range_fields[] = {
+    { "f(n)", F_DIGITS, "the term in n, like 2n-3" },
+    { "from n", F_INT, "the first n" },
+    { "to n", F_INT, "the last n; at most 500 terms" },
+    { "S(n)?", F_DIGITS | F_OPT, "optional: a closed form to check" },
+};
+
+#define RANGE_MAX 500
+
+static bool tool_range(const struct value *v)
+{
+    int64_t lo = v[1].i, hi = v[2].i;
+    if (hi < lo || hi - lo >= RANGE_MAX)
+        return ui_error("need from <= to, at most %d terms", RANGE_MAX);
+
+    /* S(k) is the sum from lo to k. A guess g(n) can match S(n), which is the
+     * left side of P(n), or S(n+1), the right side P(n+1) needs. */
+    struct frac vars[3] = { frac_int(0), frac_int(0), frac_int(0) }, t = frac_int(0),
+                first = frac_int(0), sum = frac_int(0), before, g, prev = frac_int(0);
+    bool same = v[3].given, next = v[3].given, back = v[3].given;
+    int64_t miss = lo;
+    for (int64_t k = lo; k <= hi; k++) {
+        if (kernel_poll())
+            return ui_error("stopped");
+        vars[2] = frac_int(k);
+        if (!expr_eval(v[0].text, vars, &t))
+            return ui_error("f(%lld): %s", k, expr_error());
+        if (k == lo)
+            first = t;
+        before = sum;
+        if (!frac_add(sum, t, &sum))
+            return ui_error(too_big);
+        ui_step("f(%lld) = %s, sum %s", k, frac_str(t), frac_str(sum));
+        if (!v[3].given)
+            continue;
+        if (!expr_eval(v[3].text, vars, &g))
+            return ui_error("S(n): %s", expr_error());
+        if (same && frac_cmp(g, sum)) {
+            same = false;
+            miss = k;
+        }
+        /* g(k-1) against S(k), so g(n) = S(n+1); g(k) against S(k-1), so
+         * g(n) = S(n-1): n counts the terms. */
+        if (k > lo && next && frac_cmp(prev, sum))
+            next = false;
+        if (k > lo && back && frac_cmp(g, before))
+            back = false;
+        prev = g;
+    }
+    ui_answer("sum = %s", frac_show(sum));
+    ui_say("%lld terms, f(%lld) = %s, f(%lld) = %s", hi - lo + 1, lo, frac_str(first), hi,
+           frac_str(t));
+    struct frac a, b;
+    if (frac_sub(sum, first, &a) && frac_sub(sum, t, &b))
+        ui_check("without f(%lld): %s  without f(%lld): %s", lo, frac_str(a), hi, frac_str(b));
+    if (!v[3].given)
+        return true;
+    if (same)
+        ui_answer("S(n) matches the sum to n");
+    else if (next && hi > lo)
+        ui_answer("S(n) is the sum to n+1: P(n+1)");
+    else if (back && hi > lo)
+        ui_answer("S(n) is the sum to n-1: n terms");
+    else
+        ui_answer("S(n) is wrong: n = %lld", miss);
+    return true;
+}
+
 static const struct tool tools[] = {
     { "iterate", FIELDS(iterate_fields), tool_iterate, NOTES, "RECURRENCES", NULL },
     { "characteristic equation", FIELDS(chareq_fields), tool_chareq, NOTES, "CHAR EQ", NULL },
     { "sums", FIELDS(sums_fields), tool_sums, NOTES, "SUMS", NULL },
+    { "sum f(n) over a range", FIELDS(range_fields), tool_range, NOTES, "3.2 SUMS", NULL },
 };
 
 const struct section recur_section = { "Recurrences and sums", TOOLS(tools) };

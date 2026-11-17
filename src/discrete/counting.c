@@ -12,8 +12,8 @@ static const char too_big[] = "too big for 64 bits";
 /* ---- nCr, nPr, n! ---- */
 
 static const struct field choose_fields[] = {
-    { "n", F_INT },
-    { "k", F_INT | F_OPT },
+    { "n", F_INT, "how many to pick from, 0 or more" },
+    { "k", F_INT | F_OPT, "optional: how many to pick, 0 or more" },
 };
 
 static bool tool_choose(const struct value *v)
@@ -52,10 +52,10 @@ static bool tool_choose(const struct value *v)
 /* ---- multisets ---- */
 
 static const struct field multiset_fields[] = {
-    { "chosen", F_INT },
-    { "types", F_INT },
-    { "at least", F_INT | F_OPT },
-    { "at most", F_INT | F_OPT },
+    { "chosen", F_INT, "how many to pick, repeats allowed" },
+    { "types", F_INT, "kinds to pick from, 1 or more" },
+    { "at least", F_INT | F_OPT, "optional: the fewest of each type" },
+    { "at most", F_INT | F_OPT, "optional: the most of each type" },
 };
 
 /* Ways to pick n from m types with repeats: C(n+m-1, m-1). */
@@ -109,7 +109,7 @@ static bool tool_multiset(const struct value *v)
 /* ---- multinomial ---- */
 
 static const struct field multinomial_fields[] = {
-    { "counts", F_LIST },
+    { "counts", F_LIST, "how many of each kind, like 1,4,4,2" },
 };
 
 static bool tool_multinomial(const struct value *v)
@@ -140,8 +140,8 @@ static bool tool_multinomial(const struct value *v)
 /* ---- functions A -> B ---- */
 
 static const struct field maps_fields[] = {
-    { "|A|", F_INT },
-    { "|B|", F_INT },
+    { "|A|", F_INT, "size of the domain, 0 or more" },
+    { "|B|", F_INT, "size of the codomain, 0 or more" },
 };
 
 static bool tool_maps(const struct value *v)
@@ -176,9 +176,9 @@ static bool tool_maps(const struct value *v)
 /* ---- pigeonhole ---- */
 
 static const struct field pigeon_fields[] = {
-    { "boxes", F_INT },
-    { "items", F_INT | F_OPT },
-    { "want", F_INT | F_OPT },
+    { "boxes", F_INT, "how many boxes, 1 or more" },
+    { "items", F_INT | F_OPT, "items placed; give this or want" },
+    { "want", F_INT | F_OPT, "how many in one box; this or items" },
 };
 
 static bool tool_pigeon(const struct value *v)
@@ -205,14 +205,14 @@ static bool tool_pigeon(const struct value *v)
 /* ---- inclusion-exclusion ---- */
 
 static const struct field incexc_fields[] = {
-    { "A", F_INT },
-    { "B", F_INT },
-    { "AnB", F_INT },
-    { "C", F_INT | F_OPT },
-    { "AnC", F_INT | F_OPT },
-    { "BnC", F_INT | F_OPT },
-    { "AnBnC", F_INT | F_OPT },
-    { "all", F_INT | F_OPT },
+    { "A", F_INT, "how many are in A" },
+    { "B", F_INT, "how many are in B" },
+    { "AnB", F_INT, "how many are in both A and B" },
+    { "C", F_INT | F_OPT, "optional: how many in C, for 3 sets" },
+    { "AnC", F_INT | F_OPT, "in both A and C; needed with C" },
+    { "BnC", F_INT | F_OPT, "in both B and C; needed with C" },
+    { "AnBnC", F_INT | F_OPT, "in all three; needed with C" },
+    { "all", F_INT | F_OPT, "optional: the total, to count the rest" },
 };
 
 static bool tool_incexc(const struct value *v)
@@ -242,8 +242,8 @@ static bool tool_incexc(const struct value *v)
 /* ---- lex order ---- */
 
 static const struct field lex_fields[] = {
-    { "a", F_LIST },
-    { "b", F_LIST | F_OPT },
+    { "a", F_LIST, "a list, like 4,5,2,3,1,6" },
+    { "b", F_LIST | F_OPT, "optional: a list to compare with a" },
 };
 
 static void text_tuple(const int64_t *t, uint8_t n)
@@ -312,6 +312,42 @@ static bool tool_lex(const struct value *v)
     return true;
 }
 
+/* ---- in a row ---- */
+
+static const struct field row_fields[] = {
+    { "others", F_INT, "how many are free to sit anywhere" },
+    { "k", F_INT, "how many must be together, or apart" },
+};
+
+static bool tool_row(const struct value *v)
+{
+    int64_t n = v[0].i, k = v[1].i, a, b, r;
+    if (n < 0 || k < 0)
+        return ui_error("others and k must be 0 or more");
+
+    /* Together: glue the k into one block, so n+1 blocks, times k! inside. */
+    if (i64_fact(n + 1, &a) && i64_fact(k, &b) && i64_mul(a, b, &r)) {
+        ui_answer("together: %lld", r);
+        ui_step("glue: (%lld+1)! * %lld! = %lld * %lld", n, k, a, b);
+    } else {
+        ui_say("together: %s", too_big);
+    }
+    /* Apart: seat the others, then the k in k of the n+1 gaps around them. */
+    if (k > n + 1) {
+        ui_answer("none next to each other: 0");
+        ui_step("%lld gaps for %lld", n + 1, k);
+    } else if (i64_fact(n, &a) && i64_perm(n + 1, k, &b) && i64_mul(a, b, &r)) {
+        ui_answer("none next to each other: %lld", r);
+        ui_step("gaps: %lld! * P(%lld,%lld) = %lld * %lld", n, n + 1, k, a, b);
+    } else {
+        ui_say("apart: %s", too_big);
+    }
+    if (i64_fact(n + k, &a))
+        ui_say("no rule: (%lld+%lld)! = %lld", n, k, a);
+    ui_check("not all together = no rule - together");
+    return true;
+}
+
 /* ---- decision tree ---- */
 
 /* A question, or for a leaf, the rule and the tool (in tools[]) for it. */
@@ -322,7 +358,7 @@ struct node {
     int8_t tool;                        /* -1 for none */
 };
 
-enum { CHOOSE, MULTISET, MULTINOMIAL, MAPS, PIGEON, INCEXC };
+enum { CHOOSE, MULTISET, MULTINOMIAL, MAPS, PIGEON, INCEXC, LEX, TREE, ROW };
 
 static const struct node tree[] = {
     /*  0 */ { NULL, "A sequence of slots, one pick each?", 11, 1, -1 },
@@ -343,8 +379,8 @@ static const struct node tree[] = {
     /* 15 */ { "P(n,k) = n!/(n-k)!", NULL, -1, -1, CHOOSE },
     /* 16 */ { "Multiset: C(k+n-1, n-1)", NULL, -1, -1, MULTISET },
     /* 17 */ { "C(n,k) = n!/(k!(n-k)!)", NULL, -1, -1, CHOOSE },
-    /* 18 */ { "Glue: blocks! * orders inside", NULL, -1, -1, -1 },
-    /* 19 */ { "Gaps: k! * P(k+1, r)", NULL, -1, -1, CHOOSE },
+    /* 18 */ { "Glue: (n+1)! * k!, n others", NULL, -1, -1, ROW },
+    /* 19 */ { "Gaps: n! * P(n+1, k), n others", NULL, -1, -1, ROW },
     /* 20 */ { "Complement: all - the bad ones", NULL, -1, -1, -1 },
     /* 21 */ { "Inclusion-exclusion", NULL, -1, -1, INCEXC },
     /* 22 */ { "A repeat guaranteed: pigeonhole", NULL, -1, -1, PIGEON },
@@ -400,8 +436,9 @@ static const struct tool tools[] = {
     [MAPS] = { "functions A to B", FIELDS(maps_fields), tool_maps, NOTES, "TWO WORDS", NULL },
     [PIGEON] = { "pigeonhole", FIELDS(pigeon_fields), tool_pigeon, NOTES, "PIGEONHOLE", NULL },
     [INCEXC] = { "inclusion-exclusion", FIELDS(incexc_fields), tool_incexc, NOTES, "INCL-EXCL", NULL },
-    { "lex order", FIELDS(lex_fields), tool_lex, NOTES, "LEX ORDER", NULL },
-    { "decision tree", NULL, 0, NULL, NOTES, "PICK FORMULA", run_tree },
+    [LEX] = { "lex order", FIELDS(lex_fields), tool_lex, NOTES, "LEX ORDER", NULL },
+    [TREE] = { "decision tree", NULL, 0, NULL, NOTES, "PICK FORMULA", run_tree },
+    [ROW] = { "in a row: together, apart", FIELDS(row_fields), tool_row, NOTES, "GAP / GLUE", NULL },
 };
 
 const struct section count_section = { "Counting", TOOLS(tools) };
